@@ -77,7 +77,7 @@ export default async function CoffeeDetailPage({
               alt={image.alt}
               width={image.width}
               height={image.height}
-              unoptimized
+              sizes="(max-width: 900px) 40vw, 320px"
               priority
             />
           ) : (

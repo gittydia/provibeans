@@ -132,7 +132,7 @@ export default async function Home() {
               alt={products[1].alt}
               width={products[1].width}
               height={products[1].height}
-              unoptimized
+            sizes="200px"
             />
           </div>
           <div className="pouch pouch--center">
@@ -141,7 +141,7 @@ export default async function Home() {
               alt={products[0].alt}
               width={products[0].width}
               height={products[0].height}
-              unoptimized
+            sizes="200px"
             />
           </div>
           <div className="pouch pouch--right">
@@ -150,7 +150,7 @@ export default async function Home() {
               alt={products[2].alt}
               width={products[2].width}
               height={products[2].height}
-              unoptimized
+            sizes="200px"
             />
           </div>
           <span className="script" aria-hidden="true">
@@ -204,7 +204,7 @@ export default async function Home() {
                   alt={product.alt}
                   width={product.width}
                   height={product.height}
-                  unoptimized
+            sizes="200px"
                 />
                 <span className="card-index" aria-hidden="true">
                   {String(index + 1).padStart(2, "0")}

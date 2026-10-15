@@ -1,7 +1,9 @@
+import Image from "next/image";
 import { requireUser, canManageMasterData } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { deliveries, lots, products, suppliers } from "@/lib/db/schema";
 import { asc, desc, eq } from "drizzle-orm";
+import { productArtwork } from "@/lib/product-images";
 import { DeliveryForm, ProductForm, SupplierForm } from "./forms";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +49,7 @@ export default async function CatalogPage() {
         <table>
           <thead>
             <tr>
+              <th scope="col" className="thumb-col">Image</th>
               <th scope="col">SKU</th>
               <th scope="col">Name</th>
               <th scope="col">Origin</th>
@@ -60,6 +63,22 @@ export default async function CatalogPage() {
           <tbody>
             {productRows.map((product) => (
               <tr key={product.id}>
+                <td className="thumb">
+                  {(() => {
+                    const art = productArtwork(product.sku);
+                    return art ? (
+                      <Image
+                        src={art.file}
+                        alt={art.alt}
+                        width={art.width}
+                        height={art.height}
+                        sizes="48px"
+                      />
+                    ) : (
+                      <span className="faint">—</span>
+                    );
+                  })()}
+                </td>
                 <td className="code">{product.sku}</td>
                 <td>{product.name}</td>
                 <td className="muted">

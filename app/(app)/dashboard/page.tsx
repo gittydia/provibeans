@@ -1,8 +1,10 @@
+import Image from "next/image";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth/session";
 import { MOVEMENT_LABELS } from "@/lib/db/schema";
 import { evaluateAlerts, openAlerts } from "@/lib/inventory/alerts";
 import { buildLotViews, productSummaries, recentMovements } from "@/lib/inventory/ledger";
+import { productArtwork } from "@/lib/product-images";
 
 export const dynamic = "force-dynamic";
 
@@ -118,6 +120,7 @@ export default async function DashboardPage() {
         <table>
           <thead>
             <tr>
+              <th scope="col" className="thumb-col">Image</th>
               <th scope="col">SKU</th>
               <th scope="col">Product</th>
               <th scope="col" className="num">On hand</th>
@@ -129,6 +132,20 @@ export default async function DashboardPage() {
           <tbody>
             {summaries.map((summary) => (
               <tr key={summary.product.id}>
+                <td className="thumb">
+                  {(() => {
+                    const art = productArtwork(summary.product.sku);
+                    return art ? (
+                      <Image
+                        src={art.file}
+                        alt={art.alt}
+                        width={art.width}
+                        height={art.height}
+                        sizes="48px"
+                      />
+                    ) : null;
+                  })()}
+                </td>
                 <td className="code">{summary.product.sku}</td>
                 <td>
                   {summary.product.name}

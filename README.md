@@ -3,10 +3,14 @@
 **New here? Read [`USER_GUIDE.md`](USER_GUIDE.md)** — how to run it, sign in, and use every
 screen. This README is the technical and architectural reference behind that.
 
-Two applications in one Next.js project:
+The **Provi Beans Coffee Inventory and Stock Monitoring System** — a lot-level inventory application
+for administrator, inventory staff and owner/manager roles.
 
-- **`/`** — the public editorial site for Provi Beans, a specialty coffee business that sources Vietnamese coffee and distributes it in the Philippines.
-- **`/login` → `/dashboard`** — the Provi Beans Coffee Inventory and Stock Monitoring System, a lot-level inventory application for administrator, inventory staff and owner/manager roles.
+There is no public site. The root URL redirects to `/login`, and everything behind the session guard:
+
+- **`/login` → `/dashboard`** — sign in, then the dashboard
+
+Product artwork appears inside the system itself, on the dashboard and the products table.
 
 ---
 
@@ -91,7 +95,6 @@ the operator gets a readable message instead of a constraint error.
 
 ```
 app/
-  page.tsx                    public editorial site
   login/                      sign-in (client form + server action)
   (app)/                      authenticated area
     layout.tsx                session guard + shell
@@ -99,15 +102,14 @@ app/
     lots/                     lot register and receiving
     issue/                    FEFO issuance and movements
     catalog/                  products, suppliers, deliveries
-    reports/                  ledger, lot report, activity log
-reports/export/route.ts   CSV export (role-guarded)
-   requests/               order reservations, confirm / fulfil / cancel
-   coffee/[slug]/           public product detail
-   cart/                    cart and checkout (404 unless NEXT_PUBLIC_COMMERCE=1)
-   ui/action-form.tsx        shared form + field-error wiring
+reports/                  ledger, lot report, activity log
+    reports/export/route.ts   CSV export (role-guarded)
+    requests/               order reservations, confirm / fulfil / cancel
+    ui/action-form.tsx        shared form + field-error wiring
+  cart/                      cart and checkout (404 unless NEXT_PUBLIC_COMMERCE=1)
 lib/
   db/schema.ts                14 tables, relations, constraints
-  db/index.ts                 connection (WAL, foreign keys on)
+  db/index.ts                 Neon Postgres pool (WebSocket, transactional)
   db/seed.ts                  demo dataset
   auth/password.ts            scrypt hashing and verification
   auth/session.ts             session cookies, role guards
@@ -120,7 +122,7 @@ scripts/
   verify-inventory.mts        inventory logic suite
   smoke.mjs                   HTTP end-to-end suite (auth + protected routes)
   smoke-cart.mjs              cart and checkout end-to-end suite
-  check-links.mjs             link integrity suite (orphans, dead links, anchors)
+  check-links.mjs             session guard, dead routes, screen reachability
 ```
 
 ### Data model
@@ -157,13 +159,13 @@ Staff see and action all of this at `/requests`.
 
 ---
 
-## Public routes
+## Routes
 
 | Route | Status | What it does |
 |---|---|---|
-| `/coffee/[slug]` | **Live** | Product detail — origin, blend, process, roast, price, live availability, and the issuable lots behind that number |
+| `/` | **Redirect** | 307 to `/login` |
 | `/cart` | **Disabled (404)** | Cart and checkout — built, but switched off |
-| `/order` | **Removed (404)** | Deleted with the enquiry channel — see below |
+| `/coffee/*`, `/order` | **Removed (404)** | The public site and enquiry channel, both out of scope |
 
 ### Two different treatments, for two different reasons
 
@@ -205,7 +207,7 @@ npm run verify:inventory    # 33/33  FEFO, reservations, blocking, alerts, balan
 npm run verify:periods      # 50/50  week/month/year boundaries, period aggregation
 npm run verify:smoke        # 32/32  HTTP, auth guard, protected routes, scope compliance
 npm run verify:cart         # SKIPPED by default; 18/18 when NEXT_PUBLIC_COMMERCE=1
-npm run verify:links        # 15/15  link integrity, orphans, anchors, scope compliance
+npm run verify:links        # 25/25  root redirect, session guard, reachability
 npm run verify:all          # all six in sequence (server must be running)
 ```
 
@@ -255,31 +257,37 @@ which public commerce surface is present, so a deferred feature cannot quietly r
 
 ### What the cart suite proves
 
-A real browser-shaped walkthrough over HTTP: fetch a product detail page, submit the actual add-to-cart form with
-its hidden CSRF-shaped fields, carry the issued cookie to `/cart`, adjust quantity, then check out and assert in
+A real browser-shaped walkthrough over HTTP: sign in, open `/cart`, adjust quantity, then check out and assert in
 the database that an order request was written, `RESERVE` movements exist, and the cart was emptied.
 
-It is **skipped by default** because the feature is disabled — see [Public routes](#public-routes). It prints
-`SKIPPED` and exits 0, so `verify:all` stays meaningful while the cart is hidden.
+It is **skipped by default** because the feature is disabled — see [Routes](#routes). It prints `SKIPPED` and
+exits 0, so `verify:all` stays meaningful while the cart is hidden.
+
+Note that the public product pages that fed the cart are gone, so enabling the flag alone no longer gives a
+browsable catalogue.
 
 ### What the link-integrity suite proves
 
-This suite exists because a page was twice shipped in a state where it rendered perfectly but nothing linked to
-it — the detail pages, and before them `/login`. Every suite above passed while the feature was unreachable,
-because asserting that a page *renders* is not the same as asserting that anything *points at* it.
+There is no public site to crawl, so this suite checks the shape of an internal tool instead: the root really
+redirects to sign-in, **no** protected screen is reachable by an anonymous visitor, every screen is reachable
+once signed in, and nothing links to a route that has been removed (`/coffee/*`, `/order`, or the disabled cart).
 
-`verify:links` crawls the public site from `/`, builds the inbound-link graph, and fails on:
+The original version of this suite existed because a page was twice shipped in a state where it rendered
+perfectly but nothing linked to it. The lesson still applies — asserting that a page *renders* is not the same as
+asserting that anyone *reaches* it.
 
-- any page with **zero inbound links** (the exact defect above)
-- any link pointing at a **page that does not resolve**
-- any expected route (`/login`) that nothing links to
+`verify:links` signs in as the owner and fails on:
+
+- the root not redirecting to `/login`
+- any protected screen reachable without a session
+- any screen unreachable from another screen once signed in
 - any **product** in the database without a linked detail page
-- any in-page anchor (`#contact`) with no matching `id`
-- when commerce is **disabled**, that the out-of-scope feature is genuinely unreachable: nothing links to `/cart`,
-  `/cart` returns 404, and no product page still offers add-to-cart
+- the root redirects to `/login`, and no screen is reachable without a session
+- every screen is reachable from another screen once signed in
+- nothing links to a route that has been removed (`/coffee/*`, `/order`) or disabled (`/cart`)
 
-It was verified by reverting the card links and confirming the suite failed with all three product pages named
-as orphans (`9/14`), then restoring them.
+It was originally written to catch orphaned public pages, and was verified by reverting the card links and
+confirming the suite failed with all three product pages named as orphans (`9/14`).
 
 ---
 
@@ -337,8 +345,8 @@ To override explicitly, set `SESSION_COOKIE_SECURE=true` or `false`.
 
 ## Known limitations
 
-- **Product photography is thumbnail resolution** (156×296 to 185×296 px). The public site caps display near
-  native size so nothing smears. Higher-resolution exports would allow a bolder hero.
+- **Product photography is thumbnail resolution** (156×296 to 185×296 px). The system shows them as small
+  table thumbnails so nothing smears. Higher-resolution exports would look sharper in the catalogue.
 - **Single logical inventory location.** The schema does not model multiple warehouses yet.
 - **No account management UI.** Users are created by the seed script; there is no self-service registration,
   which is deliberate for an internal tool but would need building before external use.
@@ -350,4 +358,4 @@ To override explicitly, set `SESSION_COOKIE_SECURE=true` or `false`.
 - **No visual regression coverage.** Chrome cannot be launched in this environment (Playwright fails with
   `spawn UNKNOWN`), so layout is verified by HTTP content assertions and by the design contract in `DESIGN.md`,
   not by screenshot comparison. A human pass at 375 / 430 / 768 / 1024 / 1440 / 1920 px is still outstanding
-  for the product detail and cart pages.
+  for the dashboard and catalog tables.

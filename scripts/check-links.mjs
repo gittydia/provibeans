@@ -1,200 +1,134 @@
 import "./env.mjs";
-import { raw } from "./pg.mjs";
+import { raw, run } from "./pg.mjs";
+import { randomBytes } from "node:crypto";
 
 /**
- * Link integrity: crawls the public site and fails on exactly the defect that
- * shipped twice — a page that renders perfectly but nothing links to it.
+ * Link integrity for an internal system.
+ *
+ * There is no public site. The root redirects to sign-in and every working page
+ * sits behind the session guard, so this suite checks three things instead:
+ *   - the root really redirects to login
+ *   - no protected route leaks to an anonymous visitor
+ *   - once signed in, every screen is reachable and nothing links to a route
+ *     that has been removed
  */
 
 const base = process.env.SMOKE_BASE ?? "http://localhost:3000";
+const COMMERCE_ENABLED = process.env.NEXT_PUBLIC_COMMERCE === "1";
 
 const results = [];
 const record = (label, ok, detail = "") => results.push({ label, ok, detail });
 
-function isPageLink(href) {
-  if (!href.startsWith("/")) return false;
-  if (href.startsWith("/_next/")) return false;
-  if (href.startsWith("/images/")) return false;
-  return true;
+const anon = (path) => fetch(`${base}${path}`, { redirect: "manual" });
+
+const IMS_ROUTES = [
+  "/dashboard",
+  "/lots",
+  "/issue",
+  "/catalog",
+  "/reports",
+  "/reports/periods",
+  "/requests",
+];
+
+const REMOVED_ROUTES = ["/coffee/pb-hn-250", "/coffee/pb-sgn-250", "/order"];
+
+// ---------------------------------------------------------------- anonymous
+
+const root = await anon("/");
+const rootLocation = root.headers.get("location") ?? "";
+record(
+  "the root redirects to sign-in",
+  (root.status === 307 || root.status === 302) && rootLocation.endsWith("/login"),
+  `status=${root.status} loc=${rootLocation}`,
+);
+
+const login = await anon("/login");
+record("the sign-in page is reachable", login.status === 200, `status=${login.status}`);
+
+for (const path of IMS_ROUTES) {
+  const response = await anon(path);
+  const location = response.headers.get("location") ?? "";
+  const guarded =
+    (response.status === 307 || response.status === 302) && location.includes("/login");
+  record(`${path} is not reachable without signing in`, guarded, `status=${response.status} loc=${location}`);
 }
 
-function normalise(href) {
-  const withoutHash = href.split("#")[0];
-  return withoutHash || "/";
+for (const path of REMOVED_ROUTES) {
+  const response = await anon(path);
+  record(`${path} is gone`, response.status === 404, `status=${response.status}`);
 }
 
-const rows = await raw("select sku from products where is_active = true");
-const catalogueSlugs = () =>
-  rows.map((row) =>
-    row.sku
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, ""),
-  );
+if (!COMMERCE_ENABLED) {
+  const cart = await anon("/cart");
+  record("/cart is gone while commerce is disabled", cart.status === 404, `status=${cart.status}`);
+}
 
-const expected = new Set(["/", "/login"]);
+// ------------------------------------------------------------ authenticated
 
-// Cart and checkout sit outside the Chapter I scope (see lib/features.ts), so
-// while the flag is off the route is expected to be absent rather than linked.
-const COMMERCE_ENABLED = process.env.NEXT_PUBLIC_COMMERCE === "1";
-if (COMMERCE_ENABLED) expected.add("/cart");
+const owner = (
+  await raw("select id, email from users where email = $1", ["owner@provibeans.ph"])
+)[0];
 
-const discovered = new Map();
-const inbound = new Map();
-const queue = ["/"];
-const queued = new Set(["/"]);
+if (!owner) {
+  console.error("Seeded users missing. Run `npm run db:seed` first.");
+  process.exit(1);
+}
 
-while (queue.length > 0) {
-  const path = queue.shift();
-  const response = await fetch(`${base}${path}`, { redirect: "manual" });
+const token = randomBytes(32).toString("hex");
+await run("insert into sessions (token, user_id, expires_at) values ($1, $2, $3)", [
+  token,
+  owner.id,
+  new Date(Date.now() + 3600_000).toISOString(),
+]);
 
-  if (response.status >= 400) {
-    discovered.set(path, response.status);
-    continue;
-  }
+try {
+  const seen = new Map();
+  const outbound = new Set();
 
-  const location = response.headers.get("location");
-  if (location === "/login") {
-    discovered.set(path, "guarded");
-    continue;
-  }
+  for (const path of IMS_ROUTES) {
+    const response = await fetch(`${base}${path}`, {
+      headers: { cookie: `provi_session=${token}` },
+      redirect: "manual",
+    });
+    const html = await response.text();
+    seen.set(path, { status: response.status, length: html.length });
 
-  const html = await response.text();
-  discovered.set(path, response.status);
+    record(
+      `${path} renders for a signed-in user`,
+      response.status === 200 && html.length > 2000,
+      `status=${response.status} bytes=${html.length}`,
+    );
 
-  for (const match of html.matchAll(/href="([^"]+)"/g)) {
-    const raw = match[1];
-    if (!isPageLink(raw)) continue;
-
-    const target = normalise(raw);
-    if (!inbound.has(target)) inbound.set(target, new Set());
-    inbound.get(target).add(path);
-
-    if (!queued.has(target)) {
-      queued.add(target);
-      queue.push(target);
+    for (const match of html.matchAll(/href="([^"]+)"/g)) {
+      const href = match[1];
+      if (href.startsWith("/_next/") || href.startsWith("/images/")) continue;
+      outbound.add(href.split("#")[0] || "/");
     }
   }
-}
 
-// Every product should expose a detail page, and the site should link to it.
-for (const slug of catalogueSlugs()) {
-  const path = `/coffee/${slug}`;
-  if (!queued.has(path)) {
-    queued.add(path);
-    queue.push(path);
-    const response = await fetch(`${base}${path}`, { redirect: "manual" });
-    discovered.set(path, response.status);
+  const orphans = [...seen.keys()].filter((path) => !outbound.has(path));
+  record("every screen is reachable from another screen", orphans.length === 0, orphans.join(", "));
+
+  for (const path of REMOVED_ROUTES) {
+    record(
+      `nothing links to the removed ${path}`,
+      ![...outbound].some((href) => href.startsWith(path)),
+      [...outbound].filter((href) => href.startsWith(path)).join(", "),
+    );
   }
-}
 
-const orphans = [];
-for (const path of discovered.keys()) {
-  if (path === "/") continue;
-  if (discovered.get(path) === "guarded") continue;
-  const sources = inbound.get(path);
-  if (!sources || sources.size === 0) orphans.push(path);
-}
-
-record(
-  "no public page is an orphan",
-  orphans.length === 0,
-  orphans.length > 0 ? `unreachable: ${orphans.join(", ")}` : "",
-);
-
-const deadLinks = [];
-for (const [target, sources] of inbound.entries()) {
-  const status = discovered.get(target);
-  if (status === undefined || (typeof status === "number" && status >= 400)) {
-    deadLinks.push(`${target} (from ${[...sources].join(", ")})`);
-  }
-}
-
-record(
-  "no link points at a missing page",
-  deadLinks.length === 0,
-  deadLinks.length > 0 ? deadLinks.join(" | ") : "",
-);
-
-for (const path of expected) {
-  const sources = inbound.get(path);
+  const cartLinked = [...outbound].some((href) => href === "/cart");
   record(
-    `${path} is linked from the public site`,
-    Boolean(sources && sources.size > 0),
-    sources ? `from ${[...sources].join(", ")}` : "never linked",
+    COMMERCE_ENABLED ? "the cart is linked for staff" : "nothing links to the disabled cart",
+    COMMERCE_ENABLED ? cartLinked : !cartLinked,
   );
+} finally {
+  await run("delete from sessions where token = $1", [token]);
 }
-
-for (const slug of catalogueSlugs()) {
-  const path = `/coffee/${slug}`;
-  const sources = inbound.get(path);
-  record(
-    `product page ${path} is linked from the collection`,
-    Boolean(sources && sources.size > 0),
-    sources ? `from ${[...sources].join(", ")}` : "never linked",
-  );
-}
-
-const home = await (await fetch(`${base}/`)).text();
-record(
-  "every product card links to its detail page",
-  catalogueSlugs().every((slug) => home.includes(`/coffee/${slug}`)),
-);
-
-if (COMMERCE_ENABLED) {
-  record("the cart is reachable from the public site", home.includes('href="/cart"'));
-  record("staff sign-in is reachable from the public site", home.includes('href="/login"'));
-
-  const cartPage = await (await fetch(`${base}/cart`)).text();
-  record(
-    "the cart page offers a route back to the shop",
-    cartPage.includes('href="/"') || cartPage.includes("/#collection"),
-  );
-} else {
-  // The guard's real job now: prove the out-of-scope feature is genuinely gone.
-  record("no page links to /cart while commerce is disabled", !home.includes('href="/cart"'));
-
-  const cartStatus = (await fetch(`${base}/cart`, { redirect: "manual" })).status;
-  record(
-    "/cart returns 404 while commerce is disabled",
-    cartStatus === 404,
-    `got ${cartStatus}`,
-  );
-
-  const detail = await (await fetch(`${base}/coffee/${catalogueSlugs()[0]}`)).text();
-  record("no product page offers add-to-cart", !detail.includes("Add to cart"));
-  record("staff sign-in is reachable from the public site", home.includes('href="/login"'));
-}
-
-// The /order route was removed with the enquiry form. Nothing may link to it, and
-// it must not quietly return.
-const orderStatus = (await fetch(`${base}/order`, { redirect: "manual" })).status;
-record(
-  "/order is gone and nothing links to it",
-  orderStatus === 404 && !home.includes('href="/order"'),
-  `status=${orderStatus} stillLinked=${home.includes('href="/order"')}`,
-);
-record("no public page mentions an enquiry channel", !home.includes("/order"));
-
-const anchors = [...home.matchAll(/href="#([^"]+)"/g)].map((match) => match[1]);
-const anchorTargets = [...home.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
-const brokenAnchors = [...new Set(anchors)].filter(
-  (anchor) => !anchorTargets.includes(anchor),
-);
-record(
-  "every in-page anchor resolves to a section",
-  brokenAnchors.length === 0,
-  brokenAnchors.length > 0 ? `missing: ${brokenAnchors.join(", ")}` : "",
-);
 
 console.log("Provi Beans - link integrity check");
 console.log("====================================");
-console.log(`  crawled ${discovered.size} pages from ${base}`);
-for (const [path, status] of [...discovered.entries()].sort()) {
-  const links = inbound.get(path)?.size ?? 0;
-  console.log(`    ${String(status).padEnd(8)} ${path}  (${links} inbound)`);
-}
-console.log("------------------------------------");
 for (const result of results) {
   const verdict = result.ok ? "PASS" : "FAIL";
   const suffix = result.ok || !result.detail ? "" : `  (${result.detail})`;

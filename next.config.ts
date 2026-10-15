@@ -1,6 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        // Internal system: there is deliberately no public site at the root.
+        source: "/",
+        destination: "/login",
+        permanent: false,
+      },
+    ];
+  },
   async headers() {
     return [
       {

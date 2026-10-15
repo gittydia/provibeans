@@ -9,7 +9,7 @@ in front of it, not for someone reading the schema.
 
 1. [Running it](#1-running-it)
 2. [Signing in](#2-signing-in)
-3. [The public website](#3-the-public-website)
+3. [Getting in](#3-getting-in)
 4. [The inventory system, screen by screen](#4-the-inventory-system-screen-by-screen)
 5. [Everyday tasks](#5-everyday-tasks)
 6. [How the numbers work](#6-how-the-numbers-work)
@@ -95,33 +95,21 @@ Inventory staff see those screens read-only or not at all.
 
 ---
 
-## 3. The public website
+## 3. Getting in
 
-No sign-in required.
+There is no public website. The system is internal, so:
 
-| Route | What it shows |
+| Route | What happens |
 |---|---|
-| `/` | The editorial site: hero, the three coffees, the inventory "system" story, our practice |
-| `/coffee/[slug]` | Product detail for one coffee |
-| `/cart` | **Returns 404** — deliberately, see [Optional features](#7-optional-features) |
+| `/` | Redirects you to `/login` |
+| `/login` | The sign-in page |
+| everything else | Redirects to `/login` until you are signed in |
 
-### Reading a product detail page
+After signing in you land on the **Dashboard**. To sign out, use the control in the top-right of the app
+shell.
 
-Each of the three coffees has a detail page — click a pack image, the city name, or the
-**Details →** button on any card.
-
-It shows:
-
-- **Origin, blend, process, roast, pack size** — the descriptive attributes
-- **Price** per bag
-- **Available now** — the live number, computed from the ledger
-- **Reserved** — units held for a request but not yet released
-- **Next lot expires** — the earliest expiry among lots you can actually issue
-- **A table of lots** — code, effective date, days remaining, and available quantity for
-  every issuable lot
-
-That lot table is the traceability story in its simplest form: a customer can see *which
-specific lot* their coffee comes from and how long it has left.
+Product artwork lives inside the system: you will see each coffee's pouch as a thumbnail on the **Dashboard**
+and in the **Products** table under Products & suppliers.
 
 ---
 
@@ -138,7 +126,7 @@ The morning-glance screen. Four figures across the top, then five panels:
 | Panel | What it tells you |
 |---|---|
 | **Alerts** | Everything that needs a human decision today |
-| **Stock by product** | On hand / reserved / available per SKU, plus a **State** badge |
+| **Stock by product** | A thumbnail of the pack, then on hand / reserved / available per SKU, plus a **State** badge |
 | **FEFO watchlist** | Lots approaching expiry, soonest first |
 | **Blocked lots** | Quarantined, expired or disposed lots, with the reason |
 | **Recent movements** | The last few ledger entries |
@@ -424,8 +412,6 @@ Both were supplied and expiry is earlier. Either correct the entry or leave expi
 
 | Path | Contents |
 |---|---|
-| `app/page.tsx` | Public editorial site |
-| `app/coffee/[slug]/` | Product detail |
 | `app/(app)/` | Authenticated area — all six screens |
 | `lib/inventory/ledger.ts` | Balance derivation and FEFO |
 | `lib/inventory/orders.ts` | Reservations |

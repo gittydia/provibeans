@@ -396,6 +396,23 @@ textarea[aria-invalid="true"] {
   font-size: 11px;
 }
 
+.thumb-col {
+  width: 56px;
+}
+
+.thumb {
+  width: 56px;
+  padding: 6px 8px;
+}
+
+.thumb img {
+  display: block;
+  width: 40px;
+  height: auto;
+  border-radius: 2px;
+  background: var(--app-sunk);
+}
+
 .filter-bar {
   display: flex;
   flex-wrap: wrap;

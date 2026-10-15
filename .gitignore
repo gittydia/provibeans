@@ -1,0 +1,49 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Testing
+/coverage
+
+# Next.js build output
+/.next/
+/out/
+next-env.d.ts
+
+# Production
+/build
+/dist
+
+# TypeScript
+*.tsbuildinfo
+
+# Local environment files
+.env
+.env*.local
+!.env.example
+
+# SQLite databases.
+# These are rebuilt by `npm run db:migrate` and `npm run db:seed`. The main file
+# holds user records and scrypt password hashes, so it must never be committed.
+data/*
+!data/.gitkeep
+
+# Vercel
+.vercel
+
+# Agent and editor workspace state
+.omo/
+.opencode/
+*.swp
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*

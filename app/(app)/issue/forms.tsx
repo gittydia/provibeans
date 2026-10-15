@@ -1,0 +1,123 @@
+"use client";
+
+import { ActionForm, Field } from "../ui/action-form";
+import { adjustStockAction, issueStockAction, reverseMovementAction } from "@/lib/actions/inventory";
+
+type Option = { id: number; label: string };
+type LotOption = Option & { available: number; issuable: boolean };
+
+export function IssueForm({ products, lots }: { products: Option[]; lots: LotOption[] }) {
+  return (
+    <ActionForm action={issueStockAction} submitLabel="Issue stock">
+      {(state) => (
+        <div className="form-grid">
+          <Field label="Product" name="productId" error={state.fieldErrors?.productId}>
+            <select>
+              {products.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Quantity" name="quantity" error={state.fieldErrors?.quantity}>
+            <input type="number" min={1} step={1} defaultValue={1} />
+          </Field>
+
+          <Field
+            label="Lot"
+            name="lotId"
+            hint="Leave empty to let FEFO choose the earliest valid lot."
+          >
+            <select>
+              <option value="">FEFO — recommended automatically</option>
+              {lots
+                .filter((lot) => lot.issuable && lot.available > 0)
+                .map((lot) => (
+                  <option key={lot.id} value={lot.id}>
+                    {lot.label}
+                  </option>
+                ))}
+            </select>
+          </Field>
+
+          <Field label="Reference" name="reference" hint="Sales order or customer reference.">
+            <input placeholder="SO-1104" />
+          </Field>
+
+          <Field label="Reason" name="reason">
+            <input placeholder="Stock release" />
+          </Field>
+        </div>
+      )}
+    </ActionForm>
+  );
+}
+
+const MOVEMENTS = [
+  { value: "RESERVE", label: "Reserve for an order" },
+  { value: "RELEASE", label: "Release a reservation" },
+  { value: "CANCEL", label: "Cancel a reservation" },
+  { value: "RETURN", label: "Return stock in" },
+  { value: "DAMAGE", label: "Record damage" },
+  { value: "DISPOSE", label: "Dispose stock" },
+  { value: "COUNT", label: "Physical count variance" },
+];
+
+export function AdjustForm({ lots }: { lots: LotOption[] }) {
+  return (
+    <ActionForm action={adjustStockAction} submitLabel="Record movement">
+      {(state) => (
+        <div className="form-grid">
+          <Field label="Lot" name="lotId" error={state.fieldErrors?.lotId}>
+            <select>
+              {lots.map((lot) => (
+                <option key={lot.id} value={lot.id}>
+                  {lot.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Movement" name="type">
+            <select>
+              {MOVEMENTS.map((movement) => (
+                <option key={movement.value} value={movement.value}>
+                  {movement.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Quantity" name="quantity" error={state.fieldErrors?.quantity}>
+            <input type="number" min={1} step={1} defaultValue={1} />
+          </Field>
+
+          <Field label="Reason" name="reason" error={state.fieldErrors?.reason}>
+            <input placeholder="Split seam on two bags" />
+          </Field>
+
+          <Field label="Reference" name="reference">
+            <input placeholder="RMA-118" />
+          </Field>
+        </div>
+      )}
+    </ActionForm>
+  );
+}
+
+export function ReverseForm({ movementId }: { movementId: number }) {
+  return (
+    <ActionForm action={reverseMovementAction} submitLabel="Reverse">
+      {() => (
+        <div className="form-grid">
+          <input type="hidden" name="movementId" value={movementId} />
+          <Field label="Reason" name="reason" hint="History is never deleted, only reversed.">
+            <input placeholder="Keyed against the wrong lot" />
+          </Field>
+        </div>
+      )}
+    </ActionForm>
+  );
+}

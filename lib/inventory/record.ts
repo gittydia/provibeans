@@ -1,10 +1,12 @@
 import { and, eq, sql } from "drizzle-orm";
-import { db, sqlite } from "@/lib/db";
+import { db } from "@/lib/db";
 import { auditLogs, lots, movements, products } from "@/lib/db/schema";
 import type { Lot, MovementType } from "@/lib/db/schema";
 import { allocateFefo, balancesForLots, buildLotViews } from "./ledger";
 
 export type Actor = { id: number; name: string };
+
+type Executor = Pick<typeof db, "insert" | "update" | "delete" | "select">;
 
 export type MutationResult<T = void> =
   | { ok: true; data?: T; message: string }
@@ -16,25 +18,27 @@ const fail = (error: string, fieldErrors?: Record<string, string>): MutationResu
   fieldErrors,
 });
 
-function writeAudit(
+// `exec` must be the transaction handle when called inside one: on a pooled
+// connection the default `db` uses a different connection, so the audit row would
+// survive a rollback of the change it describes.
+async function writeAudit(
   actor: Actor,
   action: string,
   entity: string,
   entityId: string,
   before?: unknown,
   after?: unknown,
-) {
-  db.insert(auditLogs)
-    .values({
-      actorId: actor.id,
-      actorName: actor.name,
-      action,
-      entity,
-      entityId,
-      before: before === undefined ? null : JSON.stringify(before),
-      after: after === undefined ? null : JSON.stringify(after),
-    })
-    .run();
+  exec: Executor = db,
+): Promise<void> {
+  await exec.insert(auditLogs).values({
+    actorId: actor.id,
+    actorName: actor.name,
+    action,
+    entity,
+    entityId,
+    before: before === undefined ? null : JSON.stringify(before),
+    after: after === undefined ? null : JSON.stringify(after),
+  });
 }
 
 function isValidDate(value: string | null | undefined): boolean {
@@ -106,8 +110,8 @@ export async function createLot(input: {
   if (existing) return fail(`Lot code ${code} already exists.`, { code: "This lot code is already in use." });
 
   try {
-    const created = await sqlite.transaction(() => {
-      const inserted = db
+    const created = await db.transaction(async (tx) => {
+      const [inserted] = await tx
         .insert(lots)
         .values({
           code,
@@ -121,27 +125,29 @@ export async function createLot(input: {
           notes: input.notes ?? null,
           status: "ACTIVE",
         })
-        .returning()
-        .get();
+        .returning();
 
-      db.insert(movements)
-        .values({
-          lotId: inserted.id,
-          productId: input.productId,
-          type: "RECEIPT",
-          quantity: input.quantity,
-          reason: "Lot received",
-          performedBy: input.actor.id,
-        })
-        .run();
-
-      writeAudit(input.actor, "RECEIVE", "lot", code, null, {
+      await tx.insert(movements).values({
+        lotId: inserted.id,
+        productId: input.productId,
+        type: "RECEIPT",
         quantity: input.quantity,
-        dates: input.dates,
+        reason: "Lot received",
+        performedBy: input.actor.id,
       });
 
+      await writeAudit(
+        input.actor,
+        "RECEIVE",
+        "lot",
+        code,
+        null,
+        { quantity: input.quantity, dates: input.dates },
+        tx,
+      );
+
       return inserted;
-    })();
+    });
 
     return { ok: true, data: { lotId: created.id, code }, message: `Lot ${code} received.` };
   } catch (error) {
@@ -251,9 +257,9 @@ async function commitMovements(
   successMessage: string,
 ): Promise<MutationResult<{ allocations: string[] }>> {
   try {
-    await sqlite.transaction(() => {
+    await db.transaction(async (tx) => {
       for (const input of inputs) {
-        db.insert(movements).values({
+        await tx.insert(movements).values({
           lotId: input.lotId,
           productId: input.productId,
           type: input.type,
@@ -261,10 +267,10 @@ async function commitMovements(
           reason: input.reason ?? null,
           reference: input.reference ?? null,
           performedBy: actor.id,
-        }).run();
+        });
       }
-      writeAudit(actor, inputs[0]?.type ?? "MOVEMENT", "movement", String(inputs.length), null, inputs);
-    })();
+      await writeAudit(actor, inputs[0]?.type ?? "MOVEMENT", "movement", String(inputs.length), null, inputs, tx);
+    });
 
     return { ok: true, data: { allocations: [] }, message: successMessage };
   } catch (error) {
@@ -344,16 +350,21 @@ export async function quarantineLot(
   if (lot.status === "QUARANTINE") return fail("That lot is already quarantined.");
 
   try {
-    await sqlite.transaction(() => {
-      db.update(lots)
+    await db.transaction(async (tx) => {
+      await tx
+        .update(lots)
         .set({ status: "QUARANTINE", quarantineReason: reason.trim() })
-        .where(eq(lots.id, lotId))
-        .run();
-      writeAudit(actor, "QUARANTINE", "lot", lot.code, { status: lot.status }, {
-        status: "QUARANTINE",
-        reason,
-      });
-    })();
+        .where(eq(lots.id, lotId));
+      await writeAudit(
+        actor,
+        "QUARANTINE",
+        "lot",
+        lot.code,
+        { status: lot.status },
+        { status: "QUARANTINE", reason },
+        tx,
+      );
+    });
     return { ok: true, message: `Lot ${lot.code} quarantined.` };
   } catch (error) {
     return fail(`Could not quarantine the lot: ${(error as Error).message}`);
@@ -366,13 +377,13 @@ export async function releaseQuarantine(actor: Actor, lotId: number): Promise<Mu
   if (lot.status !== "QUARANTINE") return fail("That lot is not quarantined.");
 
   try {
-    await sqlite.transaction(() => {
-      db.update(lots)
+    await db.transaction(async (tx) => {
+      await tx
+        .update(lots)
         .set({ status: "ACTIVE", quarantineReason: null })
-        .where(eq(lots.id, lotId))
-        .run();
-      writeAudit(actor, "UNQUARANTINE", "lot", lot.code, { status: lot.status }, { status: "ACTIVE" });
-    })();
+        .where(eq(lots.id, lotId));
+      await writeAudit(actor, "UNQUARANTINE", "lot", lot.code, { status: lot.status }, { status: "ACTIVE" }, tx);
+    });
     return { ok: true, message: `Lot ${lot.code} released back to available stock.` };
   } catch (error) {
     return fail(`Could not release the lot: ${(error as Error).message}`);
@@ -395,20 +406,18 @@ export async function reverseMovement(
   if (alreadyReversed) return fail("That movement has already been reversed.");
 
   try {
-    await sqlite.transaction(() => {
-      db.insert(movements)
-        .values({
-          lotId: original.lotId,
-          productId: original.productId,
-          type: "ADJUSTMENT",
-          quantity: -original.quantity,
-          reason: `Reversal of movement #${movementId}: ${reason.trim()}`,
-          reversesId: movementId,
-          performedBy: actor.id,
-        })
-        .run();
-      writeAudit(actor, "REVERSE", "movement", String(movementId), original, { reason });
-    })();
+    await db.transaction(async (tx) => {
+      await tx.insert(movements).values({
+        lotId: original.lotId,
+        productId: original.productId,
+        type: "ADJUSTMENT",
+        quantity: -original.quantity,
+        reason: `Reversal of movement #${movementId}: ${reason.trim()}`,
+        reversesId: movementId,
+        performedBy: actor.id,
+      });
+      await writeAudit(actor, "REVERSE", "movement", String(movementId), original, { reason }, tx);
+    });
     return { ok: true, message: `Movement #${movementId} reversed.` };
   } catch (error) {
     return fail(`Could not reverse the movement: ${(error as Error).message}`);

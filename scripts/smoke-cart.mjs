@@ -1,7 +1,7 @@
-import Database from "better-sqlite3";
+import "./env.mjs";
+import { raw, run } from "./pg.mjs";
 
 const base = process.env.SMOKE_BASE ?? "http://localhost:3000";
-const dbFile = process.env.DATABASE_FILE ?? "./data/provi-beans.db";
 
 // Cart and checkout are outside the Chapter I scope and switched off by default
 // (lib/features.ts). Skip rather than fail, so `verify:all` stays green while the
@@ -15,7 +15,6 @@ if (process.env.NEXT_PUBLIC_COMMERCE !== "1") {
   process.exit(0);
 }
 
-const db = new Database(dbFile);
 
 const results = [];
 const record = (label, ok, detail = "") => results.push({ label, ok, detail });
@@ -45,8 +44,8 @@ function postActionForm(scope, fields) {
 }
 
 // Clean slate so counts are deterministic.
-db.prepare("delete from cart_items").run();
-db.prepare("delete from carts").run();
+await run("delete from cart_items");
+await run("delete from carts");
 
 const detail = await fetch(`${base}/coffee/pb-hn-250`);
 const detailBody = await detail.text();
@@ -91,10 +90,10 @@ record("cart shows the added product", filledBody.includes("PB-HN-250"), `status
 record("cart shows a subtotal", filledBody.includes("Subtotal"));
 record("cart offers checkout", filledBody.includes("Place order request"));
 
-const stored = db.prepare("select count(*) n from cart_items").get();
+const stored = (await raw("select count(*)::int as n from cart_items"))[0];
 record("the cart persisted to the database", stored.n === 1, `rows=${stored.n}`);
 
-const beforeOrders = db.prepare("select count(*) n from order_requests").get().n;
+const beforeOrders = (await raw("select count(*)::int as n from order_requests"))[0].n;
 
 const checkoutHtml = await (await withCart("/cart")).text();
 const checkoutForm = formHtmlByPrefix(checkoutHtml, "checkout");
@@ -118,7 +117,7 @@ record(
   `status=${checkoutResponse.status}`,
 );
 
-const afterOrders = db.prepare("select count(*) n from order_requests").get().n;
+const afterOrders = (await raw("select count(*)::int as n from order_requests"))[0].n;
 record("an order row was written", afterOrders === beforeOrders + 1, `before=${beforeOrders} after=${afterOrders}`);
 
 const reservedMovements = db
@@ -126,28 +125,28 @@ const reservedMovements = db
   .get().n;
 record("checkout reserved real stock", reservedMovements >= 1, `reservations=${reservedMovements}`);
 
-const emptied = db.prepare("select count(*) n from cart_items").get().n;
+const emptied = (await raw("select count(*)::int as n from cart_items"))[0].n;
 record("the cart is emptied after checkout", emptied === 0, `rows=${emptied}`);
 
 // Clean up the order we just created so repeat runs stay deterministic.
 const ref = checkoutBody.match(/ORD-\d{4}-\d{4}/)?.[0];
 if (ref) {
-  const request = db.prepare("select id from order_requests where reference = ?").get(ref);
+  const request = (await raw("select id from order_requests where reference = $1", [ref]))[0];
   if (request) {
     for (const line of db
       .prepare("select id from order_request_lines where order_request_id = ?")
       .all(request.id)) {
-      db.prepare("delete from order_reservations where order_request_line_id = ?").run(line.id);
-      db.prepare("delete from stock_movements where reference = ?").run(ref);
+      await run("delete from order_reservations where order_request_line_id = $1", [line.id]);
+      await run("delete from stock_movements where reference = $1", [ref]);
     }
-    db.prepare("delete from order_request_lines where order_request_id = ?").run(request.id);
-    db.prepare("delete from audit_logs where entity_id = ?").run(ref);
-    db.prepare("delete from order_requests where id = ?").run(request.id);
+    await run("delete from order_request_lines where order_request_id = $1", [request.id]);
+    await run("delete from audit_logs where entity_id = $1", [ref]);
+    await run("delete from order_requests where id = $1", [request.id]);
   }
 }
 
-db.prepare("delete from cart_items").run();
-db.prepare("delete from carts").run();
+await run("delete from cart_items");
+await run("delete from carts");
 
 console.log("Provi Beans - cart and checkout smoke test");
 console.log("===========================================");

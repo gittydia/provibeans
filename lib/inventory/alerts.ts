@@ -111,7 +111,9 @@ export async function evaluateAlerts(): Promise<{ raised: number; resolved: numb
       and(
         eq(movements.type, "COUNT"),
         sql`${movements.quantity} <> 0`,
-        sql`${movements.createdAt} >= datetime('now', '-30 days')`,
+        // Cutoff built in JS so it matches the stored ISO-8601 text shape; a SQL
+        // date function would not compare correctly against it.
+        sql`${movements.createdAt} >= ${new Date(Date.now() - 30 * 86_400_000).toISOString()}`,
       ),
     );
 

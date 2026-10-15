@@ -1,10 +1,16 @@
+import "./env.mjs";
 export {};
 
-process.env.DATABASE_FILE ??= "./data/verify.db";
+// This suite truncates every table, so it must never run against the
+// application's own database. Neon branches are isolated copies, which makes
+// DATABASE_URL_VERIFY the safe target. Set before @/lib/db is imported below.
+if (process.env.DATABASE_URL_VERIFY) {
+  process.env.DATABASE_URL = process.env.DATABASE_URL_VERIFY;
+}
 
 const [
-  { eq },
-  { db, sqlite, ensureSchema },
+  { eq, sql },
+  { db, raw, ensureSchema },
   schema,
   { hashPassword },
   periods,
@@ -24,17 +30,13 @@ const { productSummaries } = ledger;
 
 await ensureSchema();
 
-for (const table of [
-  "stock_movements",
-  "lots",
-  "deliveries",
-  "products",
-  "suppliers",
-  "sessions",
-  "users",
-]) {
-  sqlite.prepare(`delete from ${table}`).run();
-}
+await db.execute(
+    sql`truncate table
+      audit_logs, alerts, sessions,
+      order_reservations, order_request_lines, order_requests,
+      stock_movements, lots, deliveries, products, suppliers, users
+      restart identity cascade`,
+  );
 
 const results: { label: string; ok: boolean; detail: string }[] = [];
 function expect(label: string, condition: boolean, detail = "") {

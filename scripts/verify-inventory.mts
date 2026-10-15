@@ -1,10 +1,16 @@
+import "./env.mjs";
 export {};
 
-process.env.DATABASE_FILE ??= "./data/verify.db";
+// This suite truncates every table, so it must never run against the
+// application's own database. Neon branches are isolated copies, which makes
+// DATABASE_URL_VERIFY the safe target. Set before @/lib/db is imported below.
+if (process.env.DATABASE_URL_VERIFY) {
+  process.env.DATABASE_URL = process.env.DATABASE_URL_VERIFY;
+}
 
 const [
-  { eq },
-  { db, sqlite, ensureSchema },
+  { eq, sql },
+  { db, raw, ensureSchema },
   schema,
   { hashPassword },
   ledger,
@@ -46,26 +52,18 @@ function expect(label: string, condition: boolean, detail = "") {
   results.push({ label, ok: condition, detail });
 }
 
-const cleanup = () => {
-  for (const table of [
-    "audit_logs",
-    "alerts",
-    "sessions",
-    "order_reservations",
-    "order_request_lines",
-    "order_requests",
-    "stock_movements",
-    "lots",
-    "products",
-    "suppliers",
-    "users",
-  ]) {
-    sqlite.prepare(`delete from ${table}`).run();
-  }
+const cleanup = async () => {
+  await db.execute(
+    sql`truncate table
+      audit_logs, alerts, sessions,
+      order_reservations, order_request_lines, order_requests,
+      stock_movements, lots, deliveries, products, suppliers, users
+      restart identity cascade`,
+  );
 };
 
 async function main() {
-  cleanup();
+  await cleanup();
 
   const passwordHash = await hashPassword("VerifyScript123");
 
@@ -138,18 +136,17 @@ async function main() {
 
   const byCode = new Map(made.map((lot) => [lot.code, lot]));
 
-  const { sqlite } = await import("@/lib/db");
-  const insertMovement = (lotCode: string, type: string, quantity: number) =>
-    sqlite
-      .prepare(
-        "insert into stock_movements (lot_id, product_id, type, quantity, performed_by) values (?,?,?,?,?)",
-      )
-      .run(byCode.get(lotCode)!.id, product.id, type, quantity, admin.id);
+  const insertMovement = async (lotCode: string, type: string, quantity: number) => {
+    await raw(
+      "insert into stock_movements (lot_id, product_id, type, quantity, performed_by) values ($1,$2,$3,$4,$5)",
+      [byCode.get(lotCode)!.id, product.id, type, quantity, admin.id],
+    );
+  };
 
-  insertMovement("V-EXPIRED", "RECEIPT", 50);
-  insertMovement("V-SOON", "RECEIPT", 40);
-  insertMovement("V-LATER", "RECEIPT", 100);
-  insertMovement("V-HELD", "RECEIPT", 60);
+  await insertMovement("V-EXPIRED", "RECEIPT", 50);
+  await insertMovement("V-SOON", "RECEIPT", 40);
+  await insertMovement("V-LATER", "RECEIPT", 100);
+  await insertMovement("V-HELD", "RECEIPT", 60);
 
   // ---- FEFO ordering -------------------------------------------------
   const plan = await fefoPlan(product.id);
@@ -409,7 +406,7 @@ const secondRun = await evaluateAlerts();
   });
   expect("a request with no lines is refused", !emptyOrder.ok);
 
-  for (const row of sqlite.prepare("select id from order_requests").all() as { id: number }[]) {
+  for (const row of await raw<{ id: number }>("select id from order_requests")) {
     await cancelOrderRequest(row.id, "verifier");
   }
 

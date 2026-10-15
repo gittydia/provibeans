@@ -1,15 +1,17 @@
-import Database from "better-sqlite3";
+import "./env.mjs";
+import { raw, run } from "./pg.mjs";
 import { randomBytes } from "node:crypto";
 
 const base = process.env.SMOKE_BASE ?? "http://localhost:3000";
-const dbFile = process.env.DATABASE_FILE ?? "./data/provi-beans.db";
-const db = new Database(dbFile);
 
 const results = [];
 const record = (label, ok, detail = "") => results.push({ label, ok, detail });
 
-const admin = db.prepare("select id, name from users where email = ?").get("admin@provibeans.ph");
-const staff = db.prepare("select id, name from users where email = ?").get("staff@provibeans.ph");
+const users = await raw("select id, name, email from users where email = any($1)", [
+  ["admin@provibeans.ph", "staff@provibeans.ph"],
+]);
+const admin = users.find((u) => u.email === "admin@provibeans.ph");
+const staff = users.find((u) => u.email === "staff@provibeans.ph");
 
 if (!admin || !staff) {
   console.error("Seeded users missing. Run `npm run db:seed` first.");
@@ -17,11 +19,11 @@ if (!admin || !staff) {
 }
 
 const token = randomBytes(32).toString("hex");
-db.prepare("insert into sessions (token, user_id, expires_at) values (?, ?, ?)").run(
+await run("insert into sessions (token, user_id, expires_at) values ($1, $2, $3)", [
   token,
   admin.id,
   new Date(Date.now() + 7 * 86_400_000).toISOString(),
-);
+]);
 
 const cookieHeader = `provi_session=${token}`;
 const anon = (path) => fetch(`${base}${path}`, { redirect: "manual" });
@@ -137,7 +139,7 @@ if (issuedToken) {
     followed.status === 200 && followedBody.includes("Inventory value"),
     `status=${followed.status}`,
   );
-  db.prepare("delete from sessions where token = ?").run(issuedToken);
+  await run("delete from sessions where token = $1", [issuedToken]);
 } else {
   record("the issued cookie reaches the dashboard", false, "no session token was issued");
 }
@@ -160,7 +162,7 @@ record(
   `status=${wrongResponse.status}`,
 );
 
-db.prepare("delete from sessions where token = ?").run(token);
+await run("delete from sessions where token = $1", [token]);
 
 console.log("Provi Beans - HTTP smoke test");
 console.log("==============================");

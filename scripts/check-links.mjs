@@ -1,4 +1,5 @@
-import Database from "better-sqlite3";
+import "./env.mjs";
+import { raw } from "./pg.mjs";
 
 /**
  * Link integrity: crawls the public site and fails on exactly the defect that
@@ -6,7 +7,6 @@ import Database from "better-sqlite3";
  */
 
 const base = process.env.SMOKE_BASE ?? "http://localhost:3000";
-const dbFile = process.env.DATABASE_FILE ?? "./data/provi-beans.db";
 
 const results = [];
 const record = (label, ok, detail = "") => results.push({ label, ok, detail });
@@ -23,16 +23,14 @@ function normalise(href) {
   return withoutHash || "/";
 }
 
-function catalogueSlugs() {
-  const db = new Database(dbFile, { readonly: true });
-  const rows = db.prepare("select sku from products where is_active = 1").all();
-  return rows.map((row) =>
+const rows = await raw("select sku from products where is_active = true");
+const catalogueSlugs = () =>
+  rows.map((row) =>
     row.sku
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, ""),
   );
-}
 
 const expected = new Set(["/", "/login"]);
 

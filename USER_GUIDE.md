@@ -46,12 +46,25 @@ npm run start
 | `npm run db:migrate` | Apply any pending schema migrations |
 | `npm run db:seed` | **Destructive reset** — see the warning below |
 | `npm run db:generate` | Write a migration after you edit `lib/db/schema.ts` |
-| `npm run verify:all` | Run all five test suites (needs the server running) |
+| `npm run verify:all` | Run all six test suites (needs the server running) |
 
-> **`db:seed` throws everything away.** It deletes every table and re-inserts the demo
-> data, including all order reservations. Use it to start clean, not to "update" anything.
-> If you want to keep a database around, copy it first:
-> `Copy-Item data/provi-beans.db data/my-backup.db`
+> **`db:seed` throws everything away.** It truncates every table and re-inserts the demo data, including
+> all order reservations. Use it to start clean, not to "update" anything.
+>
+> The database lives on **Neon (PostgreSQL)**, not on your disk. To keep a copy before re-seeding, branch it
+> first — in the Neon console, create a branch from `main`, then use its connection string.
+
+### Environment
+
+Two variables, both in `.env.local` (gitignored). Copy `.env.example` to get started.
+
+| Variable | Used by | What it is |
+|---|---|---|
+| `DATABASE_URL` | The application, `db:seed`, `db:migrate` | Your Neon connection string |
+| `DATABASE_URL_VERIFY` | `verify:inventory`, `verify:periods` | A **separate Neon branch** for the destructive suites |
+
+That second one matters: two of the suites truncate every table, so they must never touch the database the
+app runs on. A Neon branch is an isolated copy, which makes that separation free.
 
 ---
 
@@ -378,8 +391,7 @@ npm run verify:all
 Each prints an `x/y checks passed` summary and exits non-zero on failure, so they can be
 wired straight into CI.
 
-`verify:inventory` runs against a separate `data/verify.db` and wipes its own contents, so
-it never touches your data.
+The destructive suites run against `DATABASE_URL_VERIFY` (a separate Neon branch) and wipe only that,
 
 ---
 

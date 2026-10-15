@@ -1,5 +1,5 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
-import { db, sqlite } from "@/lib/db";
+import { db } from "@/lib/db";
 import {
   auditLogs,
   lots,
@@ -78,7 +78,7 @@ export async function submitOrderRequest(input: {
   const missing = [...wanted.keys()].filter((id) => !productRows.some((row) => row.id === id));
   if (missing.length > 0) return { ok: false, error: "One of the selected coffees no longer exists." };
 
-  // Allocations are computed before the transaction opens: better-sqlite3
+  // Allocations are computed before the transaction opens: the database is
   // requires a synchronous callback, and a FEFO plan is a read.
   const plans = new Map<number, { allocations: FefoAllocation[]; shortfall: number }>();
   for (const product of productRows) {
@@ -86,8 +86,8 @@ export async function submitOrderRequest(input: {
     plans.set(product.id, await allocateFefo(product.id, requested));
   }
 
-  const created = await sqlite.transaction(() => {
-    const request = db
+  const created = await db.transaction(async (tx) => {
+    const [request] = await tx
       .insert(orderRequests)
       .values({
         reference: "PENDING",
@@ -98,11 +98,10 @@ export async function submitOrderRequest(input: {
         notes: input.notes?.trim() || null,
         status: "NEW",
       })
-      .returning()
-      .get();
+      .returning();
 
     const reference = nextReference(request.id);
-    db.update(orderRequests).set({ reference }).where(eq(orderRequests.id, request.id)).run();
+    await tx.update(orderRequests).set({ reference }).where(eq(orderRequests.id, request.id));
 
     const results: OrderLineResult[] = [];
 
@@ -123,7 +122,7 @@ export async function submitOrderRequest(input: {
             ? `Short by ${shortfall}. We will confirm the balance when stock arrives.`
             : null;
 
-      const line = db
+      const [line] = await tx
         .insert(orderRequestLines)
         .values({
           orderRequestId: request.id,
@@ -133,13 +132,12 @@ export async function submitOrderRequest(input: {
           status: lineStatus,
           note,
         })
-        .returning()
-        .get();
+        .returning();
 
       const allocationsForResult: OrderLineResult["allocations"] = [];
 
       for (const allocation of allocations) {
-        const movement = db
+        const [movement] = await tx
           .insert(movements)
           .values({
             lotId: allocation.lotId,
@@ -150,17 +148,14 @@ export async function submitOrderRequest(input: {
             reference,
             performedBy: null,
           })
-          .returning()
-          .get();
+          .returning();
 
-        db.insert(orderReservations)
-          .values({
-            orderRequestLineId: line.id,
-            lotId: allocation.lotId,
-            movementId: movement.id,
-            quantity: allocation.quantity,
-          })
-          .run();
+        await tx.insert(orderReservations).values({
+          orderRequestLineId: line.id,
+          lotId: allocation.lotId,
+          movementId: movement.id,
+          quantity: allocation.quantity,
+        });
 
         allocationsForResult.push({
           lotCode: allocation.lotCode,
@@ -179,19 +174,17 @@ export async function submitOrderRequest(input: {
       });
     }
 
-    db.insert(auditLogs)
-      .values({
+    await tx.insert(auditLogs).values({
         actorId: null,
         actorName: customerName,
         action: "ORDER_REQUEST",
         entity: "order_request",
         entityId: reference,
         after: JSON.stringify({ lines: results.map((r) => `${r.sku}:${r.requested}`) }),
-      })
-      .run();
+      });
 
     return { reference, results };
-  })();
+  });
 
   await evaluateAlerts();
 
@@ -248,53 +241,46 @@ export async function cancelOrderRequest(id: number, actor: string): Promise<{ o
     return { ok: false, message: "A fulfilled request cannot be cancelled. Issue a reversal instead." };
   }
 
-  await sqlite.transaction(() => {
+  await db.transaction(async (tx) => {
     const now = new Date().toISOString();
 
     for (const { reservation } of loaded.reservations) {
       if (reservation.movementId === null) continue;
-      db.insert(movements)
-        .values({
-          lotId: reservation.lotId,
-          productId: loaded.lines.find((entry) => entry.line.id === reservation.orderRequestLineId)?.line
-            .productId ?? 0,
-          type: "CANCEL",
-          quantity: reservation.quantity,
-          reason: `Order ${loaded.request.reference} cancelled`,
-          reference: loaded.request.reference,
-          performedBy: null,
-        })
-        .run();
-      db.update(orderReservations)
+      await tx.insert(movements).values({
+        lotId: reservation.lotId,
+        productId: loaded.lines.find((entry) => entry.line.id === reservation.orderRequestLineId)?.line
+          .productId ?? 0,
+        type: "CANCEL",
+        quantity: reservation.quantity,
+        reason: `Order ${loaded.request.reference} cancelled`,
+        reference: loaded.request.reference,
+        performedBy: null,
+      });
+      await tx
+        .update(orderReservations)
         .set({ releasedAt: now })
-        .where(eq(orderReservations.id, reservation.id))
-        .run();
+        .where(eq(orderReservations.id, reservation.id));
     }
 
     for (const { line } of loaded.lines) {
-      db.update(orderRequestLines)
-        .set({ status: "CANCELLED" })
-        .where(eq(orderRequestLines.id, line.id))
-        .run();
+      await tx.update(orderRequestLines).set({ status: "CANCELLED" }).where(eq(orderRequestLines.id, line.id));
     }
 
-    db.update(orderRequests)
+    await tx
+      .update(orderRequests)
       .set({ status: "CANCELLED", updatedAt: now })
-      .where(eq(orderRequests.id, id))
-      .run();
+      .where(eq(orderRequests.id, id));
 
-    db.insert(auditLogs)
-      .values({
-        actorId: null,
-        actorName: actor,
-        action: "ORDER_CANCEL",
-        entity: "order_request",
-        entityId: loaded.request.reference,
-        before: JSON.stringify({ status: loaded.request.status }),
-        after: JSON.stringify({ status: "CANCELLED" }),
-      })
-      .run();
-  })();
+    await tx.insert(auditLogs).values({
+      actorId: null,
+      actorName: actor,
+      action: "ORDER_CANCEL",
+      entity: "order_request",
+      entityId: loaded.request.reference,
+      before: JSON.stringify({ status: loaded.request.status }),
+      after: JSON.stringify({ status: "CANCELLED" }),
+    });
+  });
 
   await evaluateAlerts();
   return { ok: true, message: `${loaded.request.reference} cancelled and stock released.` };
@@ -308,60 +294,54 @@ export async function fulfilOrderRequest(id: number, actor: string): Promise<{ o
     return { ok: false, message: "Only a new or confirmed request can be fulfilled." };
   }
 
-  await sqlite.transaction(() => {
+  await db.transaction(async (tx) => {
     const now = new Date().toISOString();
 
     for (const { reservation } of loaded.reservations) {
       const line = loaded.lines.find((entry) => entry.line.id === reservation.orderRequestLineId);
       if (!line) continue;
 
-      db.insert(movements)
-        .values({
-          lotId: reservation.lotId,
-          productId: line.line.productId,
-          type: "ISSUE",
-          quantity: reservation.quantity,
-          reason: `Fulfilled order ${loaded.request.reference}`,
-          reference: loaded.request.reference,
-          performedBy: null,
-        })
-        .run();
+      await tx.insert(movements).values({
+        lotId: reservation.lotId,
+        productId: line.line.productId,
+        type: "ISSUE",
+        quantity: reservation.quantity,
+        reason: `Fulfilled order ${loaded.request.reference}`,
+        reference: loaded.request.reference,
+        performedBy: null,
+      });
 
-      db.insert(movements)
-        .values({
-          lotId: reservation.lotId,
-          productId: line.line.productId,
-          type: "RELEASE",
-          quantity: reservation.quantity,
-          reason: `Reservation consumed by ${loaded.request.reference}`,
-          reference: loaded.request.reference,
-          performedBy: null,
-        })
-        .run();
+      await tx.insert(movements).values({
+        lotId: reservation.lotId,
+        productId: line.line.productId,
+        type: "RELEASE",
+        quantity: reservation.quantity,
+        reason: `Reservation consumed by ${loaded.request.reference}`,
+        reference: loaded.request.reference,
+        performedBy: null,
+      });
 
-      db.update(orderReservations)
+      await tx
+        .update(orderReservations)
         .set({ releasedAt: now })
-        .where(eq(orderReservations.id, reservation.id))
-        .run();
+        .where(eq(orderReservations.id, reservation.id));
     }
 
-    db.update(orderRequests)
+    await tx
+      .update(orderRequests)
       .set({ status: "FULFILLED", updatedAt: now })
-      .where(eq(orderRequests.id, id))
-      .run();
+      .where(eq(orderRequests.id, id));
 
-    db.insert(auditLogs)
-      .values({
-        actorId: null,
-        actorName: actor,
-        action: "ORDER_FULFIL",
-        entity: "order_request",
-        entityId: loaded.request.reference,
-        before: JSON.stringify({ status: loaded.request.status }),
-        after: JSON.stringify({ status: "FULFILLED" }),
-      })
-      .run();
-  })();
+    await tx.insert(auditLogs).values({
+      actorId: null,
+      actorName: actor,
+      action: "ORDER_FULFIL",
+      entity: "order_request",
+      entityId: loaded.request.reference,
+      before: JSON.stringify({ status: loaded.request.status }),
+      after: JSON.stringify({ status: "FULFILLED" }),
+    });
+  });
 
   await evaluateAlerts();
   return { ok: true, message: `${loaded.request.reference} fulfilled and stock issued.` };
@@ -372,22 +352,20 @@ export async function confirmOrderRequest(id: number, actor: string): Promise<{ 
   if (!request) return { ok: false, message: "That request does not exist." };
   if (request.status !== "NEW") return { ok: false, message: "Only a new request can be confirmed." };
 
-  db.update(orderRequests)
+  await db
+    .update(orderRequests)
     .set({ status: "CONFIRMED", updatedAt: new Date().toISOString() })
-    .where(eq(orderRequests.id, id))
-    .run();
+    .where(eq(orderRequests.id, id));
 
-  db.insert(auditLogs)
-    .values({
-      actorId: null,
-      actorName: actor,
-      action: "ORDER_CONFIRM",
-      entity: "order_request",
-      entityId: request.reference,
-      before: JSON.stringify({ status: request.status }),
-      after: JSON.stringify({ status: "CONFIRMED" }),
-    })
-    .run();
+  await db.insert(auditLogs).values({
+    actorId: null,
+    actorName: actor,
+    action: "ORDER_CONFIRM",
+    entity: "order_request",
+    entityId: request.reference,
+    before: JSON.stringify({ status: request.status }),
+    after: JSON.stringify({ status: "CONFIRMED" }),
+  });
 
   return { ok: true, message: `${request.reference} confirmed.` };
 }

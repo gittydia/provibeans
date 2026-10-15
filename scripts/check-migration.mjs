@@ -1,18 +1,19 @@
-import Database from "better-sqlite3";
+import "./env.mjs";
+import { raw } from "./pg.mjs";
 
-const db = new Database("./data/provi-beans.db", { readonly: true });
-
-const count = (table) => db.prepare(`select count(*) n from ${table}`).get().n;
+const count = async (table) => {
+  const rows = await raw(`select count(*)::int as n from ${table}`);
+  return rows[0].n;
+};
 
 console.log("existing data preserved:");
 for (const table of ["products", "lots", "stock_movements", "suppliers", "users", "deliveries"]) {
-  console.log(`  ${table}: ${count(table)}`);
+  console.log(`  ${table}: ${await count(table)}`);
 }
 
-const tables = db
-  .prepare("select name from sqlite_master where type = 'table' order by name")
-  .all()
-  .map((row) => row.name);
+const tables = (
+  await raw("select table_name from information_schema.tables where table_schema = 'public' order by table_name")
+).map((row) => row.table_name);
 
 const expected = ["order_request_lines", "order_requests", "order_reservations"];
 

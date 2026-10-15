@@ -1,34 +1,41 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   index,
   integer,
-  primaryKey,
+  pgTable,
   real,
-  sqliteTable,
+  serial,
   text,
   uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+} from "drizzle-orm/pg-core";
 
-const now = sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`;
+/**
+ * Timestamps are stored as ISO-8601 UTC text rather than `timestamptz`, so that
+ * lexicographic ordering matches chronological ordering and values round-trip
+ * identically to JavaScript's `toISOString()`. Casting through `to_char` keeps the
+ * server default in exactly that format; a plain `now()::text` would not.
+ */
+const now = sql`to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
 
-export const users = sqliteTable(
+export const users = pgTable(
   "users",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: serial("id").primaryKey(),
     email: text("email").notNull(),
     name: text("name").notNull(),
     passwordHash: text("password_hash").notNull(),
     role: text("role", { enum: ["ADMIN", "INVENTORY_STAFF", "OWNER"] })
       .notNull()
       .default("INVENTORY_STAFF"),
-    isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+    isActive: boolean("is_active").notNull().default(true),
     createdAt: text("created_at").notNull().default(now),
   },
   (table) => [uniqueIndex("users_email_unique").on(table.email)],
 );
 
-export const sessions = sqliteTable(
+export const sessions = pgTable(
   "sessions",
   {
     token: text("token").primaryKey(),
@@ -41,10 +48,10 @@ export const sessions = sqliteTable(
   (table) => [index("sessions_user_idx").on(table.userId)],
 );
 
-export const suppliers = sqliteTable(
+export const suppliers = pgTable(
   "suppliers",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: serial("id").primaryKey(),
     name: text("name").notNull(),
     contactName: text("contact_name"),
     email: text("email"),
@@ -52,16 +59,16 @@ export const suppliers = sqliteTable(
     country: text("country").notNull().default("Vietnam"),
     address: text("address"),
     notes: text("notes"),
-    isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+    isActive: boolean("is_active").notNull().default(true),
     createdAt: text("created_at").notNull().default(now),
   },
   (table) => [uniqueIndex("suppliers_name_unique").on(table.name)],
 );
 
-export const products = sqliteTable(
+export const products = pgTable(
   "products",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: serial("id").primaryKey(),
     sku: text("sku").notNull(),
     name: text("name").notNull(),
     originCountry: text("origin_country").notNull().default("Vietnam"),
@@ -74,7 +81,7 @@ export const products = sqliteTable(
     lowStockLevel: integer("low_stock_level").notNull().default(10),
     reorderPoint: integer("reorder_point").notNull().default(20),
     nearExpiryDays: integer("near_expiry_days").notNull().default(30),
-    isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+    isActive: boolean("is_active").notNull().default(true),
     createdAt: text("created_at").notNull().default(now),
     updatedAt: text("updated_at").notNull().default(now),
   },
@@ -85,10 +92,10 @@ export const products = sqliteTable(
   ],
 );
 
-export const deliveries = sqliteTable(
+export const deliveries = pgTable(
   "deliveries",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: serial("id").primaryKey(),
     supplierId: integer("supplier_id")
       .notNull()
       .references(() => suppliers.id),
@@ -104,10 +111,10 @@ export const deliveries = sqliteTable(
   ],
 );
 
-export const lots = sqliteTable(
+export const lots = pgTable(
   "lots",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: serial("id").primaryKey(),
     code: text("code").notNull(),
     productId: integer("product_id")
       .notNull()
@@ -136,15 +143,15 @@ export const lots = sqliteTable(
     ),
     check(
       "lots_expiry_after_received",
-      sql`(${table.expiryDate} IS NULL OR ${table.expiryDate} >= date(${table.receivedAt}))`,
+      sql`(${table.expiryDate} IS NULL OR (${table.expiryDate})::date >= (${table.receivedAt})::date)`,
     ),
   ],
 );
 
-export const movements = sqliteTable(
+export const movements = pgTable(
   "stock_movements",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: serial("id").primaryKey(),
     lotId: integer("lot_id")
       .notNull()
       .references(() => lots.id),
@@ -183,10 +190,10 @@ export const movements = sqliteTable(
   ],
 );
 
-export const alerts = sqliteTable(
+export const alerts = pgTable(
   "alerts",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: serial("id").primaryKey(),
     type: text("type", {
       enum: [
         "LOW_STOCK",
@@ -212,10 +219,10 @@ export const alerts = sqliteTable(
   ],
 );
 
-export const auditLogs = sqliteTable(
+export const auditLogs = pgTable(
   "audit_logs",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: serial("id").primaryKey(),
     actorId: integer("actor_id").references(() => users.id),
     actorName: text("actor_name").notNull(),
     action: text("action").notNull(),
@@ -231,10 +238,10 @@ export const auditLogs = sqliteTable(
   ],
 );
 
-export const carts = sqliteTable(
+export const carts = pgTable(
   "carts",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: serial("id").primaryKey(),
     token: text("token").notNull(),
     createdAt: text("created_at").notNull().default(now),
     updatedAt: text("updated_at").notNull().default(now),
@@ -242,10 +249,10 @@ export const carts = sqliteTable(
   (table) => [uniqueIndex("carts_token_unique").on(table.token)],
 );
 
-export const cartItems = sqliteTable(
+export const cartItems = pgTable(
   "cart_items",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: serial("id").primaryKey(),
     cartId: integer("cart_id")
       .notNull()
       .references(() => carts.id, { onDelete: "cascade" }),
@@ -261,10 +268,10 @@ export const cartItems = sqliteTable(
   ],
 );
 
-export const orderRequests = sqliteTable(
+export const orderRequests = pgTable(
   "order_requests",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: serial("id").primaryKey(),
     reference: text("reference").notNull(),
     customerName: text("customer_name").notNull(),
     business: text("business"),
@@ -284,10 +291,10 @@ export const orderRequests = sqliteTable(
   ],
 );
 
-export const orderRequestLines = sqliteTable(
+export const orderRequestLines = pgTable(
   "order_request_lines",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: serial("id").primaryKey(),
     orderRequestId: integer("order_request_id")
       .notNull()
       .references(() => orderRequests.id, { onDelete: "cascade" }),
@@ -313,10 +320,10 @@ export const orderRequestLines = sqliteTable(
   ],
 );
 
-export const orderReservations = sqliteTable(
+export const orderReservations = pgTable(
   "order_reservations",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: serial("id").primaryKey(),
     orderRequestLineId: integer("order_request_line_id")
       .notNull()
       .references(() => orderRequestLines.id, { onDelete: "cascade" }),

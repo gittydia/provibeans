@@ -15,7 +15,8 @@ Two applications in one Next.js project:
 - Node.js 20 or newer
 - npm
 
-No database server is required. The system runs on SQLite via `better-sqlite3`, stored at `data/provi-beans.db`.
+The system runs on **PostgreSQL** via Neon. Point `DATABASE_URL` at your connection string; see
+[Setup](#setup).
 
 ---
 
@@ -208,7 +209,9 @@ npm run verify:links        # 15/15  link integrity, orphans, anchors, scope com
 npm run verify:all          # all six in sequence (server must be running)
 ```
 
-`verify:inventory` runs against `data/verify.db` and wipes its own contents, so it never touches seeded data.
+The two destructive suites run against `DATABASE_URL_VERIFY` — a separate **Neon branch**, which is an
+isolated copy of the database. They truncate every table, so they must never be pointed at the database the
+application itself uses. Neon branches make that isolation trivial and free.
 The three HTTP suites expect `npm run start` (or `npm run dev`) already serving on port 3000.
 
 ### Periodic reports

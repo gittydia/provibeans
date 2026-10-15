@@ -1,5 +1,5 @@
 import { eq, sql } from "drizzle-orm";
-import { db, sqlite } from "./index";
+import { db } from "./index";
 import {
   alerts,
   auditLogs,
@@ -31,29 +31,15 @@ const DEMO_PASSWORD = "ProviBeans2026";
 async function main() {
   console.log("Seeding Provi Beans inventory...");
 
-  // Children first. These tables hold foreign keys into products, lots,
-  // stock_movements and users, so omitting them strands rows pointing at
-  // records this loop deletes.
-  sqlite.pragma("foreign_keys = OFF");
-  for (const table of [
-    cartItems,
-    carts,
-    orderReservations,
-    orderRequestLines,
-    orderRequests,
-    auditLogs,
-    alerts,
-    movements,
-    lots,
-    deliveries,
-    products,
-    sessions,
-    suppliers,
-    users,
-  ]) {
-    await db.delete(table);
-  }
-  sqlite.pragma("foreign_keys = ON");
+  // `cascade` handles referential order; `restart identity` keeps serial ids at 1 on every seed.
+  await db.execute(
+    sql`truncate table
+      cart_items, carts,
+      order_reservations, order_request_lines, order_requests,
+      audit_logs, alerts, stock_movements, lots, deliveries,
+      products, sessions, suppliers, users
+      restart identity cascade`,
+  );
 
   const passwordHash = await hashPassword(DEMO_PASSWORD);
 

@@ -38,6 +38,41 @@
   color: var(--ivory);
 }
 
+.sidebar-toggle,
+.mobile-nav-toggle,
+.sidebar-scrim {
+  font: inherit;
+}
+
+.sidebar-toggle {
+  align-self: flex-end;
+  border: 1px solid rgb(245 240 232 / 0.28);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  background: transparent;
+  color: var(--ivory);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.mobile-nav-toggle,
+.sidebar-scrim {
+  display: none;
+}
+
+.sidebar-closed .shell {
+  grid-template-columns: 72px minmax(0, 1fr);
+}
+
+.sidebar-closed .side {
+  align-items: center;
+  padding-inline: 10px;
+}
+
+.sidebar-closed .side > :not(.sidebar-toggle) {
+  display: none;
+}
+
 .side-mark {
   font-size: 13px;
   font-weight: 800;
@@ -565,10 +600,17 @@ table tfoot td {
 
 .signin-card {
   width: min(420px, 100%);
+  /* Grid items default to min-width:auto, which stops this shrinking below its
+     longest unbreakable content and pushes it past a phone viewport. */
+  min-width: 0;
   padding: 30px;
   background: var(--app-surface);
   border-radius: 12px;
   box-shadow: 0 24px 60px rgb(0 0 0 / 0.3);
+}
+
+.signin-card .demo code {
+  overflow-wrap: anywhere;
 }
 
 .signin-card h1 {
@@ -607,17 +649,33 @@ table tfoot td {
     grid-template-columns: 1fr;
   }
 
+  .sidebar-closed .shell {
+    grid-template-columns: 1fr;
+  }
+
   .side {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 14px;
-    padding: 14px 16px;
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 2;
+    width: min(300px, calc(100vw - 56px));
+    min-width: 0;
+    overflow-y: auto;
+    padding: 18px 16px 28px;
+    transform: translateX(-100%);
+    transition: transform 180ms ease;
   }
 
   .side nav {
-    grid-auto-flow: column;
-    overflow-x: auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-flow: initial;
+    overflow: visible;
+    min-width: 0;
+  }
+
+  .side nav a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
   }
 
   .side-foot {
@@ -626,7 +684,203 @@ table tfoot td {
     border-top: 0;
   }
 
+  .side-foot button {
+    min-height: 44px;
+    padding: 0 10px;
+  }
+
+  .sidebar-toggle {
+    align-self: flex-end;
+  }
+
+  .mobile-nav-toggle {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 1;
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    border: 1px solid var(--app-line);
+    border-radius: var(--radius-sm);
+    padding: 0 12px;
+    background: var(--app-surface);
+    color: var(--app-ink);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .sidebar-open .side {
+    transform: translateX(0);
+  }
+
+  .sidebar-open .mobile-nav-toggle {
+    display: none;
+  }
+
+  .sidebar-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    display: block;
+    border: 0;
+    background: rgb(44 31 27 / 0.38);
+  }
+
+  .sidebar-closed .sidebar-scrim {
+    display: none;
+  }
+
+  .main {
+    padding-top: 76px;
+  }
+
   .alert-row {
     grid-template-columns: 1fr;
+  }
+
+  .panel:has(> table)::after {
+    content: "Swipe table left and right for more columns";
+    display: block;
+    padding: 8px 12px;
+    border-top: 1px solid var(--app-line);
+    color: var(--app-ink-soft);
+    font-size: 11px;
+    text-align: right;
+  }
+}
+/* ==========================================================================
+   Responsive
+   The primitives above already adapt: the stat, form and split grids use
+   auto-fit, .page-head wraps, and .main carries min-width:0 so it cannot push
+   the grid wider than the viewport. What is handled here is everything that
+   would otherwise overflow rather than adapt.
+   ========================================================================== */
+
+/* Wide data tables are clipped by .panel's overflow:hidden, so on a narrow
+   screen the extra columns would be unreachable. Letting .panel scroll while
+   the table keeps its natural width makes every column reachable without
+   touching 16 call sites.
+
+   Scroll container must be .panel, NOT the table: an element sized
+   `max-content` with its own `overflow-x` is exactly as wide as its content,
+   so it overflows its own scroll box instead of scrolling, and its min-content
+   propagates up and stretches the grid track. */
+.panel {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.panel table {
+  width: max-content;
+  min-width: 100%;
+}
+
+/* A shadow edge hints that there is more table to scroll to. */
+.panel table {
+  background:
+    linear-gradient(to right, var(--app-surface) 30%, transparent),
+    linear-gradient(to left, var(--app-surface) 30%, transparent) 100% 0,
+    radial-gradient(farthest-side at 0 50%, rgb(0 0 0 / 0.12), transparent),
+    radial-gradient(farthest-side at 100% 50%, rgb(0 0 0 / 0.12), transparent) 100% 0;
+  background-repeat: no-repeat;
+  background-size: 32px 100%, 32px 100%, 14px 100%, 14px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
+
+@media (max-width: 860px) {
+  .main {
+    padding: 76px 14px 56px;
+  }
+
+  .page-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
+    gap: 10px;
+  }
+
+  .split {
+    gap: 16px;
+  }
+
+  th,
+  td {
+    padding: 9px 10px;
+  }
+
+  /* The pack thumbnail is a nicety; on the narrowest screens the data columns
+     matter more than the picture. */
+  .thumb-col,
+  .thumb {
+    display: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .side {
+    padding: 12px 14px;
+    gap: 12px;
+  }
+
+  .side nav {
+    gap: 4px;
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .request-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .filter-group {
+    justify-content: flex-start;
+  }
+
+  /* Comfortable touch targets. */
+  .btn,
+  .chip {
+    min-height: 44px;
+  }
+
+  .filter-group .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  th,
+  td {
+    padding: 8px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  .stat-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

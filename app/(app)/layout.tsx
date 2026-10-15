@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser, ROLE_LABELS } from "@/lib/auth/session";
 import { logoutAction } from "@/lib/actions/auth";
+import { AppShell } from "./app-shell";
 import { AppNav } from "./nav";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -9,9 +10,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!user) redirect("/login?reason=auth");
 
   return (
-    <div className="app-wrap">
-      <div className="shell">
-        <aside className="side">
+    <AppShell
+      sidebar={
+        <>
           <div>
             <Link className="side-mark" href="/dashboard">
               PROVI<span>BEANS</span>
@@ -28,10 +29,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <button type="submit">Sign out</button>
             </form>
           </div>
-        </aside>
-
-        <main className="main">{children}</main>
-      </div>
-    </div>
+        </>
+      }
+    >
+      {children}
+    </AppShell>
   );
 }

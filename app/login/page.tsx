@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { loginAction, type LoginState } from "@/lib/actions/auth";
@@ -41,10 +40,6 @@ export default async function LoginPage({
           <br />
           <code>owner@provibeans.ph</code> owner / manager
         </div>
-
-        <p className="faint" style={{ marginTop: 18, marginBottom: 0 }}>
-          <Link href="/">← Back to the public site</Link>
-        </p>
       </div>
     </div>
   );

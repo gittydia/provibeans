@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NotificationBell } from "./notifications/bell";
 import { NotificationsProvider } from "./notifications/store";
+import { TableLabels } from "@/lib/table-labels";
 
 const desktopQuery = "(min-width: 861px)";
 
@@ -74,6 +75,7 @@ export function AppShell({ sidebar, children }: { sidebar: ReactNode; children: 
 
   return (
     <NotificationsProvider>
+      <TableLabels />
       <div className={`app-wrap ${isOpen ? "sidebar-open" : "sidebar-closed"}`}>
         <button
           type="button"

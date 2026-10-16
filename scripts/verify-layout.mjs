@@ -159,8 +159,27 @@ function collect() {
       });
     }
 
+    /* Below the stacking breakpoint a row is a labelled block rather than a grid
+       of columns, so "does the header sit over its column" and "do cells share a
+       gutter" have no meaning: there is no column to sit over. `display: block`
+       on the table itself is the signal, read from the cascade rather than from
+       the viewport, so the two can never disagree. */
+    const stacked = getComputedStyle(table).display === "block";
+
+    /* Every cell needs its column name once the grid dissolves, or a stacked
+       value is an unlabelled number. */
+    const unlabelled = stacked
+      ? bodyRows.flatMap((row) =>
+          [...row.cells]
+            .filter((cell) => seen(cell) && !(cell.dataset.label ?? "").trim())
+            .map((cell) => (cell.textContent ?? "").trim().slice(0, 18)),
+        )
+      : [];
+
     return {
       caption: (table.closest(".panel, section")?.querySelector("h2")?.textContent ?? "").trim(),
+      stacked,
+      unlabelled,
       headCount: headCells.length,
       rowCounts: bodyRows.map((row) => row.cells.length),
       alignDeltas,
@@ -436,6 +455,7 @@ async function main() {
     const misaligned = [];
     for (const m of measurements) {
       for (const table of m.tables) {
+        if (table.stacked) continue;
         for (const delta of table.alignDeltas) {
           if (delta.exempt) continue;
           if (Math.abs(delta.delta) > EPSILON) {
@@ -445,6 +465,21 @@ async function main() {
       }
     }
     record(`${route}: every table header sits over its own column`, misaligned.length === 0, misaligned.join(" | "));
+  }
+
+  /* The stacked counterpart of the two grid checks: once a row is a list of
+     labelled pairs, an unlabelled cell is the same defect a misaligned header
+     would be in the grid. */
+  for (const [route, measurements] of perRoute) {
+    const stranded = [];
+    for (const m of measurements) {
+      for (const table of m.tables) {
+        for (const value of table.unlabelled) {
+          stranded.push(`${m.viewport}px ${table.caption || "table"} cell "${value}" has no column label`);
+        }
+      }
+    }
+    record(`${route}: every stacked cell carries its column label`, stranded.length === 0, stranded.join(" | "));
   }
 
   for (const [route, measurements] of perRoute) {
@@ -464,6 +499,7 @@ async function main() {
     const inconsistent = [];
     for (const m of measurements) {
       for (const table of m.tables) {
+        if (table.stacked) continue;
         const gutters = new Set([
           ...table.headPad.map((p) => p.left),
           ...table.bodyPad.map((p) => p.left),

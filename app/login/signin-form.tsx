@@ -1,25 +1,24 @@
 "use client";
 
-import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
-import type { LoginState } from "@/lib/actions/auth";
+import { useState, type SyntheticEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useMockStore, type FormState } from "@/lib/mock-store";
 
-type Action = (state: LoginState, formData: FormData) => Promise<LoginState>;
+export function SignInForm() {
+  const { login } = useMockStore();
+  const router = useRouter();
+  const [state, setState] = useState<FormState>({});
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
+  function submit(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const result = login(String(formData.get("email") ?? ""), String(formData.get("password") ?? ""));
+    setState(result);
+    if (result.ok) router.replace("/dashboard");
+  }
+
   return (
-    <button type="submit" className="btn" disabled={pending}>
-      {pending ? "Checking…" : "Sign in"}
-    </button>
-  );
-}
-
-export function SignInForm({ action, initialState }: { action: Action; initialState: LoginState }) {
-  const [state, formAction] = useActionState(action, initialState);
-
-  return (
-    <form action={formAction} noValidate>
+    <form onSubmit={submit} noValidate>
       {state.error ? (
         <p className="notice notice-crit" role="alert">
           {state.error}
@@ -63,7 +62,7 @@ export function SignInForm({ action, initialState }: { action: Action; initialSt
       </div>
 
       <div className="actions">
-        <SubmitButton />
+        <button type="submit" className="btn">Sign in</button>
       </div>
     </form>
   );

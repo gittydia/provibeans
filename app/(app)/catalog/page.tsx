@@ -1,32 +1,24 @@
+"use client";
+
 import Image from "next/image";
-import { requireUser, canManageMasterData } from "@/lib/auth/session";
-import { db } from "@/lib/db";
-import { deliveries, lots, products, suppliers } from "@/lib/db/schema";
-import { asc, desc, eq } from "drizzle-orm";
+import { canManageMasterData, useMockStore } from "@/lib/mock-store";
 import { productArtwork } from "@/lib/product-images";
 import { DeliveryForm, ProductForm, SupplierForm } from "./forms";
-
-export const dynamic = "force-dynamic";
 
 function peso(value: number): string {
   return `₱${value.toLocaleString("en-PH", { maximumFractionDigits: 2 })}`;
 }
 
-export default async function CatalogPage() {
-  const user = await requireUser();
+export default function CatalogPage() {
+  const { state, user } = useMockStore();
+  if (!user) return null;
   const canEdit = canManageMasterData(user.role);
-
-  const [productRows, supplierRows, deliveryRows] = await Promise.all([
-    db.select().from(products).orderBy(asc(products.sku)),
-    db.select().from(suppliers).orderBy(asc(suppliers.name)),
-    db
-      .select({ delivery: deliveries, supplierName: suppliers.name })
-      .from(deliveries)
-      .innerJoin(suppliers, eq(deliveries.supplierId, suppliers.id))
-      .orderBy(desc(deliveries.receivedAt)),
-  ]);
-
-  const lotCounts = await db.select().from(lots).orderBy(asc(lots.code));
+  const productRows = [...state.products].sort((a, b) => a.sku.localeCompare(b.sku));
+  const supplierRows = [...state.suppliers].sort((a, b) => a.name.localeCompare(b.name));
+  const deliveryRows = [...state.deliveries]
+    .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
+    .map((delivery) => ({ delivery, supplierName: state.suppliers.find((supplier) => supplier.id === delivery.supplierId)?.name ?? "Unknown supplier" }));
+  const lotCounts = [...state.lots].sort((a, b) => a.code.localeCompare(b.code));
   const countFor = (productId: number) =>
     lotCounts.filter((lot) => lot.productId === productId).length;
 
@@ -61,39 +53,47 @@ export default async function CatalogPage() {
             </tr>
           </thead>
           <tbody>
-            {productRows.map((product) => (
-              <tr key={product.id}>
-                <td className="thumb">
-                  {(() => {
-                    const art = productArtwork(product.sku);
-                    return art ? (
-                      <Image
-                        src={art.file}
-                        alt={art.alt}
-                        width={art.width}
-                        height={art.height}
-                        sizes="48px"
-                      />
-                    ) : (
-                      <span className="faint">—</span>
-                    );
-                  })()}
+            {productRows.length === 0 ? (
+              <tr>
+                <td colSpan={9}>
+                  <p className="empty">No products yet.</p>
                 </td>
-                <td className="code">{product.sku}</td>
-                <td>{product.name}</td>
-                <td className="muted">
-                  {product.originCountry}
-                  {product.originRegion ? ` — ${product.originRegion}` : ""}
-                </td>
-                <td className="muted">{product.species ?? "—"}</td>
-                <td className="num">{product.weightGrams}g</td>
-                <td className="num">{peso(product.unitPrice)}</td>
-                <td className="num">
-                  {product.lowStockLevel} / {product.reorderPoint}
-                </td>
-                <td className="num">{countFor(product.id)}</td>
               </tr>
-            ))}
+            ) : (
+              productRows.map((product) => (
+                <tr key={product.id}>
+                  <td className="thumb">
+                    {(() => {
+                      const art = productArtwork(product.sku);
+                      return art ? (
+                        <Image
+                          src={art.file}
+                          alt={art.alt}
+                          width={art.width}
+                          height={art.height}
+                          sizes="48px"
+                        />
+                      ) : (
+                        <span className="faint">—</span>
+                      );
+                    })()}
+                  </td>
+                  <td className="code">{product.sku}</td>
+                  <td>{product.name}</td>
+                  <td className="muted">
+                    {product.originCountry}
+                    {product.originRegion ? ` — ${product.originRegion}` : ""}
+                  </td>
+                  <td className="muted">{product.species ?? "—"}</td>
+                  <td className="num">{product.weightGrams}g</td>
+                  <td className="num">{peso(product.unitPrice)}</td>
+                  <td className="num">
+                    {product.lowStockLevel} / {product.reorderPoint}
+                  </td>
+                  <td className="num">{countFor(product.id)}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </section>
@@ -114,23 +114,31 @@ export default async function CatalogPage() {
             </tr>
           </thead>
           <tbody>
-            {supplierRows.map((supplier) => (
-              <tr key={supplier.id}>
-                <td>{supplier.name}</td>
-                <td className="muted">
-                  {supplier.contactName ?? "—"}
-                  {supplier.email ? (
-                    <>
-                      <br />
-                      <span className="faint">{supplier.email}</span>
-                    </>
-                  ) : null}
+            {supplierRows.length === 0 ? (
+              <tr>
+                <td colSpan={5}>
+                  <p className="empty">No suppliers on record.</p>
                 </td>
-                <td className="muted">{supplier.country}</td>
-                <td className="muted">{supplier.address ?? "—"}</td>
-                <td className="muted">{supplier.notes ?? "—"}</td>
               </tr>
-            ))}
+            ) : (
+              supplierRows.map((supplier) => (
+                <tr key={supplier.id}>
+                  <td>{supplier.name}</td>
+                  <td className="muted">
+                    {supplier.contactName ?? "—"}
+                    {supplier.email ? (
+                      <>
+                        <br />
+                        <span className="faint">{supplier.email}</span>
+                      </>
+                    ) : null}
+                  </td>
+                  <td className="muted">{supplier.country}</td>
+                  <td className="muted">{supplier.address ?? "—"}</td>
+                  <td className="muted">{supplier.notes ?? "—"}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </section>
@@ -150,14 +158,22 @@ export default async function CatalogPage() {
             </tr>
           </thead>
           <tbody>
-            {deliveryRows.map((row) => (
-              <tr key={row.delivery.id}>
-                <td className="code">{row.delivery.reference ?? `#${row.delivery.id}`}</td>
-                <td>{row.supplierName}</td>
-                <td className="muted">{row.delivery.receivedAt.slice(0, 10)}</td>
-                <td className="muted">{row.delivery.notes ?? "—"}</td>
+            {deliveryRows.length === 0 ? (
+              <tr>
+                <td colSpan={4}>
+                  <p className="empty">No deliveries recorded.</p>
+                </td>
               </tr>
-            ))}
+            ) : (
+              deliveryRows.map((row) => (
+                <tr key={row.delivery.id}>
+                  <td className="code">{row.delivery.reference ?? `#${row.delivery.id}`}</td>
+                  <td>{row.supplierName}</td>
+                  <td className="muted">{row.delivery.receivedAt.slice(0, 10)}</td>
+                  <td className="muted">{row.delivery.notes ?? "—"}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </section>

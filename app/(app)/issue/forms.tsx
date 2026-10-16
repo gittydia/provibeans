@@ -1,14 +1,21 @@
 "use client";
 
 import { ActionForm, Field } from "../ui/action-form";
-import { adjustStockAction, issueStockAction, reverseMovementAction } from "@/lib/actions/inventory";
+import { useMockStore, type MovementType } from "@/lib/mock-store";
 
 type Option = { id: number; label: string };
 type LotOption = Option & { available: number; issuable: boolean };
 
 export function IssueForm({ products, lots }: { products: Option[]; lots: LotOption[] }) {
+  const { issueStock } = useMockStore();
   return (
-    <ActionForm action={issueStockAction} submitLabel="Issue stock">
+    <ActionForm action={(formData) => issueStock({
+      productId: Number(formData.get("productId")),
+      quantity: Number(formData.get("quantity")),
+      lotId: formData.get("lotId") ? Number(formData.get("lotId")) : null,
+      reason: String(formData.get("reason") || "") || null,
+      reference: String(formData.get("reference") || "") || null,
+    })} submitLabel="Issue stock">
       {(state) => (
         <div className="form-grid">
           <Field label="Product" name="productId" error={state.fieldErrors?.productId}>
@@ -66,8 +73,15 @@ const MOVEMENTS = [
 ];
 
 export function AdjustForm({ lots }: { lots: LotOption[] }) {
+  const { adjustStock } = useMockStore();
   return (
-    <ActionForm action={adjustStockAction} submitLabel="Record movement">
+    <ActionForm action={(formData) => adjustStock({
+      lotId: Number(formData.get("lotId")),
+      type: String(formData.get("type")) as MovementType,
+      quantity: Number(formData.get("quantity")),
+      reason: String(formData.get("reason") ?? ""),
+      reference: String(formData.get("reference") || "") || null,
+    })} submitLabel="Record movement">
       {(state) => (
         <div className="form-grid">
           <Field label="Lot" name="lotId" error={state.fieldErrors?.lotId}>
@@ -108,8 +122,9 @@ export function AdjustForm({ lots }: { lots: LotOption[] }) {
 }
 
 export function ReverseForm({ movementId }: { movementId: number }) {
+  const { reverseMovement } = useMockStore();
   return (
-    <ActionForm action={reverseMovementAction} submitLabel="Reverse">
+    <ActionForm action={(formData) => reverseMovement(movementId, String(formData.get("reason") ?? ""))} submitLabel="Reverse">
       {() => (
         <div className="form-grid">
           <input type="hidden" name="movementId" value={movementId} />

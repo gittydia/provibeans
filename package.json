@@ -6,33 +6,22 @@
         "dev": "next dev",
         "build": "next build",
         "start": "next start",
-        "db:generate": "drizzle-kit generate",
-        "db:migrate": "drizzle-kit migrate",
-        "db:seed": "tsx lib/db/seed.ts",
-        "verify:rules": "node scripts/verify-rules.mjs",
-        "verify:inventory": "tsx scripts/verify-inventory.mts",
-        "verify:notifications": "tsx scripts/verify-notifications.mts",
-        "verify:periods": "tsx scripts/verify-periods.mts",
-        "verify": "npm run verify:rules && npm run verify:inventory",
-        "verify:smoke": "node scripts/smoke.mjs",
-        "verify:cart": "node scripts/smoke-cart.mjs",
-        "verify:links": "node scripts/check-links.mjs",
-        "verify:all": "npm run verify:rules && npm run verify:inventory && npm run verify:notifications && npm run verify:periods && npm run verify:smoke && npm run verify:cart && npm run verify:links"
+        "typecheck": "tsc --noEmit",
+        "verify:frontend": "node scripts/verify-frontend.mjs",
+        "verify:layout": "node scripts/verify-layout.mjs",
+        "verify": "npm run typecheck && npm run verify:frontend",
+        "verify:all": "npm run verify && npm run verify:layout"
     },
     "dependencies": {
-        "@neondatabase/serverless": "^1.2.0",
-        "drizzle-orm": "^0.45.4",
         "next": "^16.4.1",
         "react": "19.2.0",
         "react-dom": "19.2.0"
     },
     "devDependencies": {
-        "@types/better-sqlite3": "^9.6.0",
         "@types/node": "^22",
         "@types/react": "^19",
         "@types/react-dom": "^19",
-        "drizzle-kit": "^0.31.11",
-        "tsx": "^4.23.15",
+        "playwright-core": "^1.64.1",
         "typescript": "^5"
     }
 }

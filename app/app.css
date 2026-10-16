@@ -11,8 +11,24 @@
   --app-warn: #9c6b1f;
   --app-crit: #a13d2c;
   --app-info: #4a6076;
-  --radius-sm: 4px;
+--radius-sm: 4px;
   --radius-md: 8px;
+
+  /* ---------------------------------------------------------------------------
+     Layout
+
+     DESIGN.md §4 names a 1500px content limiter; it was documented but never
+     implemented, so panels stretched to the full width of an ultrawide display.
+     scripts/verify-layout.mjs fails if a screen exceeds it again.
+
+     --cell-x/--cell-y are the single table rhythm. Header cells and body cells
+     share them, which is what makes a header sit over its own column.
+     --------------------------------------------------------------------------- */
+  --content-limit: 1500px;
+  --gutter: clamp(18px, 3vw, 36px);
+  --gutter-narrow: 14px;
+  --cell-x: 12px;
+  --cell-y: 10px;
 }
 
 .app-wrap {
@@ -36,6 +52,38 @@
   padding: 22px 18px;
   background: var(--espresso);
   color: var(--ivory);
+  /* The height is load-bearing, not decoration: .shell sizes itself with
+     min-height, so a long .main stretches this column to the full page and
+     the sidebar scrolls away with the body. Fixing it to the viewport pins the
+     rail alongside the content for as long as the content scrolls.
+
+     This rail deliberately does not scroll itself. `overflow-y: auto` here also
+     makes overflow-x non-visible, and the rail is 232px wide while the
+     notification flyout is 340px — the rail would amputate the panel. The inner
+     .side-scroll owns the scrolling instead, which leaves the bell sitting
+     outside the clip so its panel can overhang into the content column. */
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+}
+
+.side-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  /* flex:1 with min-height:0 is what lets this box shrink below its content and
+     actually scroll. A flex item defaults to min-height:auto, which refuses to
+     get smaller than its contents, so the overflow would never engage and the
+     nav list would simply stretch the rail. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Contain stops a wheel gesture that runs out of nav items from chaining
+     into the page behind the rail. */
+  overscroll-behavior-y: contain;
+  /* Same reason .panel carries it: iOS only gives a scroller momentum once it
+     is asked to. Without this the nav list drags 1:1 instead of gliding. */
+  -webkit-overflow-scrolling: touch;
 }
 
 .sidebar-toggle,
@@ -45,14 +93,73 @@
 }
 
 .sidebar-toggle {
-  align-self: flex-end;
+  /* Square and centred so the glyph sits on the same optical centre at 34px on
+     desktop and 44px on touch, instead of inheriting text metrics and drifting. */
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
   border: 1px solid rgb(245 240 232 / 0.28);
   border-radius: var(--radius-sm);
-  padding: 7px 9px;
   background: transparent;
   color: var(--ivory);
   cursor: pointer;
+  /* The tooltip is absolutely positioned out of this box, and the button has to
+     own a stacking context for it to paint over the content column — a static
+     button's pseudo-element would be painted under .main. */
+  position: relative;
+  z-index: 4;
+}
+
+.sidebar-toggle:hover {
+  background: rgb(245 240 232 / 0.08);
+}
+
+/* The chevron points left when the rail is open and flips to point right when it
+   is collapsed, so the glyph shows which way the sidebar will travel. Rotating
+   the one drawn path is what makes that a single icon rather than two. */
+.sidebar-toggle .toggle-icon {
+  transform: rotate(0deg);
+  /* transform is compositor-only, and --motion collapses to 0.001 under
+     prefers-reduced-motion, so this needs no motion query of its own. */
+  transition: transform calc(var(--motion) * 0.22s) var(--ease);
+}
+
+.sidebar-closed .sidebar-toggle .toggle-icon {
+  transform: rotate(180deg);
+}
+
+/* One label source for both the accessible name and this bubble. It appears on
+   :focus-visible as well as :hover, because a keyboard user has no pointer to
+   hover with and an icon-only control is otherwise unlabelled for them. */
+.sidebar-toggle::after,
+.mobile-nav-toggle::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 8px);
+  translate: 0 -50%;
+  z-index: 5;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--cacao);
+  color: var(--ivory);
   font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+  white-space: nowrap;
+  opacity: 0;
+  /* Never intercepts the pointer, so crossing the bubble cannot drop :hover and
+     make it flicker. */
+  pointer-events: none;
+  transition: opacity calc(var(--motion) * 0.18s) var(--ease);
+}
+
+.sidebar-toggle:hover::after,
+.sidebar-toggle:focus-visible::after,
+.mobile-nav-toggle:hover::after,
+.mobile-nav-toggle:focus-visible::after {
+  opacity: 1;
 }
 
 .mobile-nav-toggle,
@@ -73,6 +180,12 @@
    from the 72px rail, so it is exempt from the hide-everything rule. */
 .sidebar-closed .side > :not(.sidebar-toggle):not(.notif-sidebar) {
   display: none;
+}
+
+/* An icon on a 72px rail reads as deliberate only if it is centred on the rail's
+   centre line; left to flex-end it would hug the edge with 20px of dead space. */
+.sidebar-closed .sidebar-toggle {
+  align-self: center;
 }
 
 .side-mark {
@@ -149,15 +262,20 @@
 }
 
 .main {
+  width: 100%;
   min-width: 0;
-  padding: 26px clamp(18px, 3vw, 36px) 64px;
+  max-width: var(--content-limit);
+  margin-inline: auto;
+  padding: 26px var(--gutter) 64px;
 }
 
 .page-head {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  align-items: baseline;
+  /* Bottom edges, not baselines: a pill button aligned to an h1's baseline
+     floats above the words it is supposed to sit level with. */
+  align-items: end;
   justify-content: space-between;
   margin-bottom: 22px;
 }
@@ -213,10 +331,12 @@
 
 .panel {
   margin-bottom: 22px;
-  background: var(--app-surface);
   border: 1px solid var(--app-line);
   border-radius: var(--radius-md);
-  overflow: hidden;
+  /* Wide data tables scroll here rather than being clipped. See the Responsive
+     section for why the scroller has to be the panel and not the table. */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .panel > header {
@@ -252,15 +372,21 @@
   align-items: start;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--text-md);
+/* Panel-to-panel rhythm is 22px, but inside a panel the rhythm is the padding,
+   so the split inherits 16px rather than opening a gap wider than its own box. */
+.panel-body .split {
+  gap: 16px;
+}
+
+/* One padding for every cell, headers included. A header row padded 9px against
+   a body row's 10px reads as two rhythms stacked on top of each other. */
+th,
+td {
+  padding: var(--cell-y) var(--cell-x);
+  border-bottom: 1px solid var(--app-line);
 }
 
 th {
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--app-line);
   font-size: var(--text-2xs);
   font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-caps);
@@ -271,9 +397,22 @@ th {
 }
 
 td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--app-line);
   vertical-align: top;
+  /* Lowers a cell's intrinsic minimum width so a single long value cannot
+     inflate its column and push the rest of the table sideways. */
+  overflow-wrap: anywhere;
+}
+
+/* A row is as tall as its tallest cell, so every single-value cell has to
+   centre against it or it reads as floating. Figures, identifiers, badges and
+   the thumbnail are single-value; only genuinely multi-line content — a sku
+   over its product name, a wrapped reason — stays top-aligned. */
+td.num,
+td.code,
+td.thumb,
+td:has(> .badge),
+td:has(.btn) {
+  vertical-align: middle;
 }
 
 tbody tr:last-child td {
@@ -332,6 +471,13 @@ tbody tr:hover {
 .field {
   display: grid;
   gap: 5px;
+  /* A field is a grid item, so it stretches to the tallest field in its row —
+     a 72px textarea, or one carrying a two-line hint. Its own rows then absorb
+     whatever slack that leaves, and because a field with a hint has three rows
+     to share it while a bare one has two, the controls end up different heights
+     and different baselines within the same row. Pinning the content to the top
+     keeps the boxes aligned and lets the control keep its natural height. */
+  align-content: start;
 }
 
 .field > span {
@@ -433,13 +579,17 @@ textarea[aria-invalid="true"] {
   font-size: var(--text-xs);
 }
 
-.thumb-col {
-  width: 56px;
+.thumb-col,
+.thumb {
+  width: 64px;
 }
 
+/* The thumbnail is an object rather than a word, so its cell carries no vertical
+   padding — `vertical-align: middle` centres it in whatever height the row
+   needs. It keeps the shared horizontal gutter so its left edge lines up with
+   the SKU text beside it, which an 8px inset did not. */
 .thumb {
-  width: 56px;
-  padding: 6px 8px;
+  padding: 0 var(--cell-x);
 }
 
 .thumb img {
@@ -566,6 +716,27 @@ table tfoot td {
 .notice-ok { background: #e4ecdf; color: var(--app-ok); border: 1px solid #c6d4bd; }
 .notice-crit { background: #f6e2dc; color: var(--app-crit); border: 1px solid #e2bdb2; }
 
+/* Spacing for the two-line record rows (a badge over a code, a reason over its
+   form) and the note block under a request. These were inline styles, so the
+   spacing existed in six places in five files and could only be checked by
+   reading all five. */
+.row-note {
+  margin-top: 6px;
+}
+
+.row-form {
+  margin-top: 10px;
+}
+
+.row-label {
+  margin-bottom: 8px;
+}
+
+.request-note {
+  margin: 0;
+  padding: 12px var(--cell-x);
+}
+
 .empty {
   padding: 30px 16px;
   text-align: center;
@@ -575,11 +746,22 @@ table tfoot td {
 
 .alert-row {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
+  /* Fixed, so every message below the badge starts at the same x. 112px clears
+     the widest severity label; the badge wraps rather than pushing the message
+     sideways if one is ever wider still. */
+  grid-template-columns: 112px minmax(0, 1fr);
   gap: 12px;
   padding: 11px 16px;
   border-bottom: 1px solid var(--app-line);
   align-items: start;
+}
+
+.alert-row .badge {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  /* Once the row stacks to one column the badge is a grid item and would stretch
+     the full width of the panel, which reads as a bar rather than a label. */
+  justify-self: start;
 }
 
 .alert-row:last-child {
@@ -626,6 +808,12 @@ table tfoot td {
   color: var(--app-ink-soft);
 }
 
+/* `.signin-card > p` outranks `.eyebrow`, which would otherwise be flattened to
+   the same 20px as body copy it is meant to introduce. */
+.signin-card > .eyebrow {
+  margin-bottom: 24px;
+}
+
 .signin-card .field {
   margin-bottom: 12px;
 }
@@ -661,7 +849,6 @@ table tfoot td {
     z-index: 2;
     width: min(300px, calc(100vw - 56px));
     min-width: 0;
-    overflow-y: auto;
     padding: 18px 16px 28px;
     transform: translateX(-100%);
     transition: transform 180ms ease;
@@ -691,26 +878,31 @@ table tfoot td {
     padding: 0 10px;
   }
 
+  /* 44px is DESIGN.md §8's floor for a touch target; the desktop 34px would be
+   below it. */
   .sidebar-toggle {
     align-self: flex-end;
+    width: 44px;
+    height: 44px;
   }
 
+  /* Fixed positioning already establishes a containing block, so the tooltip's
+     absolute positioning anchors here without an extra `position: relative`. */
   .mobile-nav-toggle {
     position: fixed;
     top: 12px;
     left: 12px;
-    z-index: 1;
-    display: inline-flex;
-    min-height: 44px;
-    align-items: center;
+    z-index: 4;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
     border: 1px solid var(--app-line);
     border-radius: var(--radius-sm);
-    padding: 0 12px;
+    padding: 0;
     background: var(--app-surface);
     color: var(--app-ink);
     cursor: pointer;
-    font-size: var(--text-md);
-    font-weight: var(--weight-bold);
   }
 
   .sidebar-open .side {
@@ -760,40 +952,44 @@ table tfoot td {
    would otherwise overflow rather than adapt.
    ========================================================================== */
 
-/* Wide data tables are clipped by .panel's overflow:hidden, so on a narrow
-   screen the extra columns would be unreachable. Letting .panel scroll while
-   the table keeps its natural width makes every column reachable without
-   touching 16 call sites.
+/* Wide data tables are clipped by the panel, so on a narrow screen the extra
+   columns would be unreachable. Letting the panel scroll while the table keeps
+   its natural width makes every column reachable without touching 16 call
+   sites.
 
    Scroll container must be .panel, NOT the table: an element sized
    `max-content` with its own `overflow-x` is exactly as wide as its content,
    so it overflows its own scroll box instead of scrolling, and its min-content
-   propagates up and stretches the grid track. */
-.panel {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
+   propagates up and stretches the grid track.
 
+   The table sizes to its content and is then filled out to the panel width, so
+   a column is only as wide as its widest value. `overflow-wrap: anywhere` on
+   cells is what keeps that true — `break-word` would leave one long reason or
+   address setting the width of its column for the whole table. */
 .panel table {
   width: max-content;
   min-width: 100%;
 }
 
-/* A shadow edge hints that there is more table to scroll to. */
-.panel table {
+/* The scroll hint has to live on the panel, because `background-attachment`
+   tracks the element's own scrollport and the table is not the scroller. The
+   first two layers are the panel's own surface colour sliding with the content,
+   which is what hides the shadow at each end once you reach it. */
+.panel {
   background:
     linear-gradient(to right, var(--app-surface) 30%, transparent),
     linear-gradient(to left, var(--app-surface) 30%, transparent) 100% 0,
     radial-gradient(farthest-side at 0 50%, rgb(0 0 0 / 0.12), transparent),
-    radial-gradient(farthest-side at 100% 50%, rgb(0 0 0 / 0.12), transparent) 100% 0;
+    radial-gradient(farthest-side at 100% 50%, rgb(0 0 0 / 0.12), transparent) 100% 0,
+    var(--app-surface);
   background-repeat: no-repeat;
-  background-size: 32px 100%, 32px 100%, 14px 100%, 14px 100%;
-  background-attachment: local, local, scroll, scroll;
+  background-size: 32px 100%, 32px 100%, 14px 100%, 14px 100%, auto;
+  background-attachment: local, local, scroll, scroll, scroll;
 }
 
 @media (max-width: 860px) {
   .main {
-    padding: 76px 14px 56px;
+    padding: 76px var(--gutter-narrow) 56px;
   }
 
   .page-head {
@@ -811,9 +1007,15 @@ table tfoot td {
     gap: 16px;
   }
 
+  /* Derived from the same two tokens rather than restated, so the narrow-screen
+     rhythm cannot drift away from the wide one. */
   th,
   td {
-    padding: 9px 10px;
+    padding: calc(var(--cell-y) - 1px) var(--cell-x);
+  }
+
+  .thumb {
+    padding: 0 calc(var(--cell-x) - 2px);
   }
 
   /* The pack thumbnail is a nicety; on the narrowest screens the data columns
@@ -874,9 +1076,9 @@ table tfoot td {
     font-size: 1rem;
   }
 
-  th,
+th,
   td {
-    padding: 8px;
+    padding: calc(var(--cell-y) - 2px) calc(var(--cell-x) - 4px);
     font-size: var(--text-sm);
   }
 }

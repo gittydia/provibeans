@@ -1,19 +1,19 @@
+"use client";
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCart } from "@/lib/cart";
-import { slugForProduct } from "@/lib/cart";
+import { cartView, slugForProduct, useMockStore } from "@/lib/mock-store";
 import { COMMERCE_ENABLED } from "@/lib/features";
 import { CheckoutForm, QuantityControl, RemoveButton } from "./cart-forms";
-
-export const dynamic = "force-dynamic";
 
 function peso(value: number): string {
   return `₱${value.toLocaleString("en-PH", { maximumFractionDigits: 2 })}`;
 }
 
-export default async function CartPage() {
+export default function CartPage() {
   if (!COMMERCE_ENABLED) notFound();
-  const cart = await getCart();
+  const { state } = useMockStore();
+  const cart = cartView(state);
 
   return (
     <main className="detail-page">

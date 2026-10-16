@@ -1,12 +1,7 @@
-import Link from "next/link";
-import { requireUser, canViewReports } from "@/lib/auth/session";
-import { db } from "@/lib/db";
-import { MOVEMENT_LABELS, auditLogs, lots, movements, products } from "@/lib/db/schema";
-import type { MovementType } from "@/lib/db/schema";
-import { and, asc, desc, eq, gte, lte, type SQL } from "drizzle-orm";
-import { buildLotViews } from "@/lib/inventory/ledger";
+"use client";
 
-export const dynamic = "force-dynamic";
+import Link from "next/link";
+import { MOVEMENT_LABELS, buildLotViews, canViewReports, downloadCsv, useMockStore, type MovementType } from "@/lib/mock-store";
 
 const MOVEMENT_FILTERS: { value: string; label: string }[] = [
   { value: "", label: "All movement types" },
@@ -23,47 +18,27 @@ const MOVEMENT_FILTERS: { value: string; label: string }[] = [
   { value: "COUNT", label: "Counts" },
 ];
 
-export default async function ReportsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ type?: string; from?: string; to?: string }>;
-}) {
-  const user = await requireUser();
-  const filters = await searchParams;
-
-  const conditions: SQL[] = [];
-  if (filters.type) conditions.push(eq(movements.type, filters.type as MovementType));
-  if (filters.from) conditions.push(gte(movements.createdAt, new Date(filters.from).toISOString()));
-  if (filters.to) {
-    const to = new Date(filters.to);
-    to.setHours(23, 59, 59, 999);
-    conditions.push(lte(movements.createdAt, to.toISOString()));
-  }
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
-
-  const [movementRows, lotViews, activity, productRows] = await Promise.all([
-    db
-      .select({
-        movement: movements,
-        lotCode: lots.code,
-        productSku: products.sku,
-      })
-      .from(movements)
-      .innerJoin(lots, eq(movements.lotId, lots.id))
-      .innerJoin(products, eq(movements.productId, products.id))
-      .where(where)
-      .orderBy(desc(movements.createdAt), desc(movements.id))
-      .limit(200),
-    buildLotViews(),
-    db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(40),
-    db.select({ sku: products.sku }).from(products).orderBy(asc(products.sku)),
-  ]);
-
-  const query = new URLSearchParams();
-  if (filters.type) query.set("type", filters.type);
-  if (filters.from) query.set("from", filters.from);
-  if (filters.to) query.set("to", filters.to);
-  const exportHref = `/reports/export${query.size > 0 ? `?${query}` : ""}`;
+export default function ReportsPage() {
+  const { state, user, hydrated } = useMockStore();
+  if (!user) return null;
+  const searchParams = hydrated ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const filters = { type: searchParams.get("type") ?? "", from: searchParams.get("from") ?? "", to: searchParams.get("to") ?? "" };
+  const from = filters.from ? new Date(filters.from).toISOString() : null;
+  const toDate = filters.to ? new Date(filters.to) : null;
+  if (toDate) toDate.setHours(23, 59, 59, 999);
+  const movementRows = [...state.movements]
+    .filter((movement) => !filters.type || movement.type === filters.type as MovementType)
+    .filter((movement) => !from || movement.createdAt >= from)
+    .filter((movement) => !toDate || movement.createdAt <= toDate.toISOString())
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id)
+    .slice(0, 200)
+    .flatMap((movement) => {
+      const lot = state.lots.find((entry) => entry.id === movement.lotId);
+      const product = state.products.find((entry) => entry.id === movement.productId);
+      return lot && product ? [{ movement, lotCode: lot.code, productSku: product.sku }] : [];
+    });
+  const lotViews = buildLotViews(state);
+  const activity = [...state.audit].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 40);
 
   return (
     <>
@@ -125,9 +100,12 @@ export default async function ReportsPage({
             {canViewReports(user.role) ? (
               <>
                 {" · "}
-                <a href={exportHref} download>
+                <button type="button" className="notif-link" onClick={() => downloadCsv("provi-beans-movements.csv", [
+                  ["When", "Type", "Lot", "SKU", "Quantity", "Reason", "Reference", "Reverses"],
+                  ...movementRows.map(({ movement, lotCode, productSku }) => [movement.createdAt, MOVEMENT_LABELS[movement.type], lotCode, productSku, movement.quantity, movement.reason, movement.reference, movement.reversesId]),
+                ])}>
                   Export CSV
-                </a>
+                </button>
               </>
             ) : null}
           </p>
@@ -137,7 +115,7 @@ export default async function ReportsPage({
           <div className="form-grid">
             <label className="field" htmlFor="type">
               <span>Movement type</span>
-              <select id="type" name="type" defaultValue={filters.type ?? ""}>
+              <select id="type" name="type" defaultValue={filters.type}>
                 {MOVEMENT_FILTERS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -148,12 +126,12 @@ export default async function ReportsPage({
 
             <label className="field" htmlFor="from">
               <span>From</span>
-              <input id="from" type="date" name="from" defaultValue={filters.from ?? ""} />
+              <input id="from" type="date" name="from" defaultValue={filters.from} />
             </label>
 
             <label className="field" htmlFor="to">
               <span>To</span>
-              <input id="to" type="date" name="to" defaultValue={filters.to ?? ""} />
+              <input id="to" type="date" name="to" defaultValue={filters.to} />
             </label>
           </div>
 

@@ -1,12 +1,9 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
-import { requireUser } from "@/lib/auth/session";
-import { MOVEMENT_LABELS } from "@/lib/db/schema";
-import { evaluateAlertsSafely, openAlerts } from "@/lib/inventory/alerts";
-import { buildLotViews, productSummaries, recentMovements } from "@/lib/inventory/ledger";
+import { MOVEMENT_LABELS, buildLotViews, openAlerts, productSummaries, useMockStore } from "@/lib/mock-store";
 import { productArtwork } from "@/lib/product-images";
-
-export const dynamic = "force-dynamic";
 
 function peso(value: number): string {
   return `₱${value.toLocaleString("en-PH", { maximumFractionDigits: 0 })}`;
@@ -27,16 +24,14 @@ function LotStateBadge({
   return <span className="badge badge-ok">Issuable</span>;
 }
 
-export default async function DashboardPage() {
-  await requireUser();
-
-  await evaluateAlertsSafely();
-  const [summaries, lotViews, alerts, movements] = await Promise.all([
-    productSummaries(),
-    buildLotViews(),
-    openAlerts(),
-    recentMovements(12),
-  ]);
+export default function DashboardPage() {
+  const { state } = useMockStore();
+  const summaries = productSummaries(state);
+  const lotViews = buildLotViews(state);
+  const alerts = openAlerts(state);
+  const movements = [...state.movements]
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt) || right.id - left.id)
+    .slice(0, 12);
 
   const totalValue = summaries.reduce((sum, entry) => sum + entry.inventoryValue, 0);
   const totalAvailable = summaries.reduce((sum, entry) => sum + entry.available, 0);
@@ -130,43 +125,51 @@ export default async function DashboardPage() {
             </tr>
           </thead>
           <tbody>
-            {summaries.map((summary) => (
-              <tr key={summary.product.id}>
-                <td className="thumb">
-                  {(() => {
-                    const art = productArtwork(summary.product.sku);
-                    return art ? (
-                      <Image
-                        src={art.file}
-                        alt={art.alt}
-                        width={art.width}
-                        height={art.height}
-                        sizes="48px"
-                      />
-                    ) : null;
-                  })()}
-                </td>
-                <td className="code">{summary.product.sku}</td>
-                <td>
-                  {summary.product.name}
-                  <div className="faint">{summary.lotCount} lots</div>
-                </td>
-                <td className="num">{summary.onHand}</td>
-                <td className="num">{summary.reserved}</td>
-                <td className="num">{summary.available}</td>
-                <td>
-                  {summary.stockState === "OK" ? (
-                    <span className="badge badge-ok">Above reorder point</span>
-                  ) : summary.stockState === "REORDER" ? (
-                    <span className="badge badge-warn">Reorder</span>
-                  ) : summary.stockState === "LOW" ? (
-                    <span className="badge badge-crit">Low stock</span>
-                  ) : (
-                    <span className="badge badge-crit">Expired hold</span>
-                  )}
+            {summaries.length === 0 ? (
+              <tr>
+                <td colSpan={7}>
+                  <p className="empty">No products yet. Add one under Products &amp; suppliers.</p>
                 </td>
               </tr>
-            ))}
+            ) : (
+              summaries.map((summary) => (
+                <tr key={summary.product.id}>
+                  <td className="thumb">
+                    {(() => {
+                      const art = productArtwork(summary.product.sku);
+                      return art ? (
+                        <Image
+                          src={art.file}
+                          alt={art.alt}
+                          width={art.width}
+                          height={art.height}
+                          sizes="48px"
+                        />
+                      ) : null;
+                    })()}
+                  </td>
+                  <td className="code">{summary.product.sku}</td>
+                  <td>
+                    {summary.product.name}
+                    <div className="faint">{summary.lotCount} lots</div>
+                  </td>
+                  <td className="num">{summary.onHand}</td>
+                  <td className="num">{summary.reserved}</td>
+                  <td className="num">{summary.available}</td>
+                  <td>
+                    {summary.stockState === "OK" ? (
+                      <span className="badge badge-ok">Above reorder point</span>
+                    ) : summary.stockState === "REORDER" ? (
+                      <span className="badge badge-warn">Reorder</span>
+                    ) : summary.stockState === "LOW" ? (
+                      <span className="badge badge-crit">Low stock</span>
+                    ) : (
+                      <span className="badge badge-crit">Expired hold</span>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </section>

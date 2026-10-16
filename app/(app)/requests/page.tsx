@@ -1,8 +1,7 @@
-import { requireUser } from "@/lib/auth/session";
-import { listOrderRequests, loadOrderRequest, openRequestCounts } from "@/lib/inventory/orders";
-import { RequestRow } from "./row";
+"use client";
 
-export const dynamic = "force-dynamic";
+import { useMockStore } from "@/lib/mock-store";
+import { RequestRow } from "./row";
 
 function statusBadge(status: string) {
   if (status === "NEW") return <span className="badge badge-info">New</span>;
@@ -12,16 +11,22 @@ function statusBadge(status: string) {
   return <span className="badge badge-mute">{status}</span>;
 }
 
-export default async function RequestsPage() {
-  await requireUser();
-
-  const [requests, counts] = await Promise.all([
-    listOrderRequests(),
-    openRequestCounts(),
-  ]);
-
-  const details = await Promise.all(requests.map((request) => loadOrderRequest(request.id)));
-  const withDetails = details.filter((entry) => entry !== null);
+export default function RequestsPage() {
+  const { state } = useMockStore();
+  const requests = [...state.requests].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const counts = {
+    NEW: requests.filter((request) => request.status === "NEW").length,
+    CONFIRMED: requests.filter((request) => request.status === "CONFIRMED").length,
+    FULFILLED: requests.filter((request) => request.status === "FULFILLED").length,
+  };
+  const withDetails = requests.map((request) => ({
+    request,
+    lines: request.lines.map((line) => ({ line, product: state.products.find((product) => product.id === line.productId)! })),
+    reservations: request.lines.flatMap((line) => line.allocations.map((allocation, index) => ({
+      reservation: { id: index, orderRequestLineId: line.id, quantity: allocation.quantity },
+      lot: state.lots.find((lot) => lot.id === allocation.lotId)!,
+    }))),
+  }));
 
   return (
     <>
@@ -39,14 +44,17 @@ export default async function RequestsPage() {
         <div className="stat">
           <dt>New requests</dt>
           <dd>{counts.NEW}</dd>
+          <small>Awaiting confirmation</small>
         </div>
         <div className="stat">
           <dt>Confirmed</dt>
           <dd>{counts.CONFIRMED}</dd>
+          <small>Stock held, not yet issued</small>
         </div>
         <div className="stat">
           <dt>Fulfilled</dt>
           <dd>{counts.FULFILLED}</dd>
+          <small>Issued and closed</small>
         </div>
       </dl>
 
@@ -90,39 +98,47 @@ export default async function RequestsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {entry!.lines.map(({ line, product }) => (
-                    <tr key={line.id}>
-                      <td>
-                        {product.sku}
-                        <div className="faint">{product.name}</div>
+                  {entry!.lines.length === 0 ? (
+                    <tr>
+                      <td colSpan={6}>
+                        <p className="empty">This request has no lines.</p>
                       </td>
-                      <td className="num">{line.quantityRequested}</td>
-                      <td className="num">{line.quantityReserved}</td>
-                      <td className="code">
-                        {entry!.reservations
-                          .filter((reservation) => reservation.reservation.orderRequestLineId === line.id)
-                          .map((reservation) => `${reservation.lot.code} ×${reservation.reservation.quantity}`)
-                          .join(", ") || "—"}
-                      </td>
-                      <td>
-                        {line.status === "RESERVED" ? (
-                          <span className="badge badge-ok">Held</span>
-                        ) : line.status === "PARTIAL" ? (
-                          <span className="badge badge-warn">Partial</span>
-                        ) : line.status === "SHORT" ? (
-                          <span className="badge badge-crit">Short</span>
-                        ) : (
-                          <span className="badge badge-mute">Cancelled</span>
-                        )}
-                      </td>
-                      <td className="muted">{line.note ?? "—"}</td>
                     </tr>
-                  ))}
+                  ) : (
+                    entry!.lines.map(({ line, product }) => (
+                      <tr key={line.id}>
+                        <td>
+                          {product.sku}
+                          <div className="faint">{product.name}</div>
+                        </td>
+                        <td className="num">{line.quantityRequested}</td>
+                        <td className="num">{line.quantityReserved}</td>
+                        <td className="code">
+                          {entry!.reservations
+                            .filter((reservation) => reservation.reservation.orderRequestLineId === line.id)
+                            .map((reservation) => `${reservation.lot.code} ×${reservation.reservation.quantity}`)
+                            .join(", ") || "—"}
+                        </td>
+                        <td>
+                          {line.status === "RESERVED" ? (
+                            <span className="badge badge-ok">Held</span>
+                          ) : line.status === "PARTIAL" ? (
+                            <span className="badge badge-warn">Partial</span>
+                          ) : line.status === "SHORT" ? (
+                            <span className="badge badge-crit">Short</span>
+                          ) : (
+                            <span className="badge badge-mute">Cancelled</span>
+                          )}
+                        </td>
+                        <td className="muted">{line.note ?? "—"}</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
 
               {entry!.request.notes ? (
-                <p className="muted" style={{ padding: "12px 16px", margin: 0 }}>
+                <p className="muted request-note">
                   <strong>Customer note:</strong> {entry!.request.notes}
                 </p>
               ) : null}

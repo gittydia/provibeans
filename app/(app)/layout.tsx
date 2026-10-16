@@ -1,13 +1,21 @@
+"use client";
+
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getCurrentUser, ROLE_LABELS } from "@/lib/auth/session";
-import { logoutAction } from "@/lib/actions/auth";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { ROLE_LABELS, useMockStore } from "@/lib/mock-store";
 import { AppShell } from "./app-shell";
 import { AppNav } from "./nav";
 
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login?reason=auth");
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const { user, hydrated, logout } = useMockStore();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (hydrated && !user) router.replace("/login?reason=auth");
+  }, [hydrated, router, user]);
+
+  if (!hydrated || !user) return null;
 
   return (
     <AppShell
@@ -25,9 +33,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="side-foot">
             <strong>{user.name}</strong>
             {ROLE_LABELS[user.role]}
-            <form action={logoutAction}>
-              <button type="submit">Sign out</button>
-            </form>
+            <button type="button" onClick={() => { logout(); router.replace("/login?reason=signed-out"); }}>
+              Sign out
+            </button>
           </div>
         </>
       }

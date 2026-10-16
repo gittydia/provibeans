@@ -1,20 +1,12 @@
-import { requireUser } from "@/lib/auth/session";
-import { evaluateAlerts } from "@/lib/inventory/alerts";
-import { buildLotViews } from "@/lib/inventory/ledger";
-import { fefoPlan } from "@/lib/inventory/ledger";
-import { db } from "@/lib/db";
-import { products } from "@/lib/db/schema";
-import { asc } from "drizzle-orm";
+"use client";
+
+import { buildLotViews, fefoPlan, useMockStore } from "@/lib/mock-store";
 import { AdjustForm, IssueForm, ReverseForm } from "./forms";
 
-export const dynamic = "force-dynamic";
-
-export default async function IssuePage() {
-  await requireUser();
-  await evaluateAlerts();
-
-  const views = await buildLotViews();
-  const productRows = await db.select().from(products).orderBy(asc(products.name));
+export default function IssuePage() {
+  const { state } = useMockStore();
+  const views = buildLotViews(state);
+  const productRows = [...state.products].sort((a, b) => a.name.localeCompare(b.name));
 
   const productOptions = productRows.map((product) => ({
     id: product.id,
@@ -28,9 +20,9 @@ export default async function IssuePage() {
     issuable: view.isIssuable,
   }));
 
-  const recommendations = [];
+  const recommendations: { product: (typeof productRows)[number]; first: ReturnType<typeof fefoPlan>[number]; total: number; spread: number }[] = [];
   for (const product of productRows) {
-    const plan = await fefoPlan(product.id);
+    const plan = fefoPlan(state, product.id);
     if (plan.length === 0) continue;
     recommendations.push({
       product,
@@ -40,11 +32,10 @@ export default async function IssuePage() {
     });
   }
 
-  const recentIssues = await db.query.movements.findMany({
-    where: (movement, { eq }) => eq(movement.type, "ISSUE"),
-    orderBy: (movement, { desc }) => [desc(movement.createdAt), desc(movement.id)],
-    limit: 8,
-  });
+  const recentIssues = [...state.movements]
+    .filter((movement) => movement.type === "ISSUE" && movement.quantity > 0)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id)
+    .slice(0, 8);
 
   return (
     <>
@@ -132,7 +123,7 @@ export default async function IssuePage() {
                 <span className="badge badge-info">
                   {movement.quantity} unit{movement.quantity === 1 ? "" : "s"}
                 </span>
-                <p className="faint" style={{ marginTop: 6 }}>
+                <p className="faint row-note">
                   {movement.createdAt.slice(0, 10)}
                   <br />#{movement.id}
                 </p>
@@ -142,7 +133,7 @@ export default async function IssuePage() {
                   {movement.reason ?? "No reason recorded"}
                   {movement.reference ? ` · ${movement.reference}` : ""}
                 </p>
-                <div style={{ marginTop: 10 }}>
+                <div className="row-form">
                   <ReverseForm movementId={movement.id} />
                 </div>
               </div>

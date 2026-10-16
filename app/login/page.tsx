@@ -1,17 +1,11 @@
-import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth/session";
-import { loginAction, type LoginState } from "@/lib/actions/auth";
+"use client";
+
+import { useMockStore } from "@/lib/mock-store";
 import { SignInForm } from "./signin-form";
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ reason?: string }>;
-}) {
-  const user = await getCurrentUser();
-  if (user) redirect("/dashboard");
-
-  const { reason } = await searchParams;
+export default function LoginPage() {
+  const { hydrated } = useMockStore();
+  const reason = hydrated ? new URLSearchParams(window.location.search).get("reason") : null;
 
   return (
     <div className="signin">
@@ -29,7 +23,7 @@ export default async function LoginPage({
           </p>
         ) : null}
 
-        <SignInForm action={loginAction} initialState={{} as LoginState} />
+        <SignInForm />
 
         <div className="demo">
           <strong>Demo accounts</strong> — password <code>ProviBeans2026</code>

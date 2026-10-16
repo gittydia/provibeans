@@ -1,12 +1,7 @@
-import { requireUser } from "@/lib/auth/session";
-import { evaluateAlerts } from "@/lib/inventory/alerts";
-import { buildLotViews } from "@/lib/inventory/ledger";
-import { db } from "@/lib/db";
-import { deliveries, products, suppliers } from "@/lib/db/schema";
-import { asc, eq } from "drizzle-orm";
-import { CreateLotForm, QuarantineForm, ReleaseForm } from "./forms";
+"use client";
 
-export const dynamic = "force-dynamic";
+import { buildLotViews, useMockStore } from "@/lib/mock-store";
+import { CreateLotForm, QuarantineForm, ReleaseForm } from "./forms";
 
 function stateBadge(view: { isExpired: boolean; isQuarantined: boolean; isNearExpiry: boolean }) {
   if (view.isExpired) return <span className="badge badge-crit">Expired</span>;
@@ -15,17 +10,13 @@ function stateBadge(view: { isExpired: boolean; isQuarantined: boolean; isNearEx
   return <span className="badge badge-ok">Issuable</span>;
 }
 
-export default async function LotsPage() {
-  await requireUser();
-  await evaluateAlerts();
-
-  const views = await buildLotViews();
-  const productRows = await db.select().from(products).orderBy(asc(products.name));
-  const deliveryRows = await db
-    .select({ delivery: deliveries, supplierName: suppliers.name })
-    .from(deliveries)
-    .innerJoin(suppliers, eq(deliveries.supplierId, suppliers.id))
-    .orderBy(asc(deliveries.receivedAt));
+export default function LotsPage() {
+  const { state } = useMockStore();
+  const views = buildLotViews(state);
+  const productRows = [...state.products].sort((a, b) => a.name.localeCompare(b.name));
+  const deliveryRows = [...state.deliveries]
+    .sort((a, b) => a.receivedAt.localeCompare(b.receivedAt))
+    .map((delivery) => ({ delivery, supplierName: state.suppliers.find((supplier) => supplier.id === delivery.supplierId)?.name ?? "Unknown supplier" }));
 
   return (
     <>
@@ -77,21 +68,29 @@ export default async function LotsPage() {
             </tr>
           </thead>
           <tbody>
-            {views.map((view) => (
-              <tr key={view.lot.id}>
-                <td className="code">{view.lot.code}</td>
-                <td>
-                  {view.product.sku}
-                  <div className="faint">{view.product.name}</div>
+            {views.length === 0 ? (
+              <tr>
+                <td colSpan={8}>
+                  <p className="empty">No lots yet. Receive one above to start tracking stock.</p>
                 </td>
-                <td>{view.effectiveDate}</td>
-                <td className="num">{view.daysToExpiry}</td>
-                <td className="num">{view.onHand}</td>
-                <td className="num">{view.reserved}</td>
-                <td className="num">{view.available}</td>
-                <td>{stateBadge(view)}</td>
               </tr>
-            ))}
+            ) : (
+              views.map((view) => (
+                <tr key={view.lot.id}>
+                  <td className="code">{view.lot.code}</td>
+                  <td>
+                    {view.product.sku}
+                    <div className="faint">{view.product.name}</div>
+                  </td>
+                  <td>{view.effectiveDate}</td>
+                  <td className="num">{view.daysToExpiry}</td>
+                  <td className="num">{view.onHand}</td>
+                  <td className="num">{view.reserved}</td>
+                  <td className="num">{view.available}</td>
+                  <td>{stateBadge(view)}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </section>
@@ -110,7 +109,7 @@ export default async function LotsPage() {
               <div className="alert-row" key={view.lot.id}>
                 <div>
                   <span className="badge badge-warn">Held</span>
-                  <p className="faint" style={{ marginTop: 6 }}>
+                  <p className="faint row-note">
                     {view.lot.code}
                     <br />
                     {view.onHand} on hand
@@ -118,7 +117,7 @@ export default async function LotsPage() {
                 </div>
                 <div>
                   <p className="muted">{view.lot.quarantineReason ?? "No reason recorded."}</p>
-                  <div style={{ marginTop: 10 }}>
+                  <div className="row-form">
                     <ReleaseForm lotId={view.lot.id} />
                   </div>
                 </div>
@@ -141,7 +140,7 @@ export default async function LotsPage() {
                 .filter((view) => !view.isQuarantined && view.lot.status === "ACTIVE")
                 .map((view) => (
                   <div key={view.lot.id}>
-                    <p className="code" style={{ marginBottom: 8 }}>
+                    <p className="code row-label">
                       {view.lot.code}
                     </p>
                     <QuarantineForm lotId={view.lot.id} />

@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import { requireUser, canViewReports } from "@/lib/auth/session";
+import { canViewReports, downloadCsv, useMockStore } from "@/lib/mock-store";
 import {
   buildPeriodReport,
   periodCoverage,
@@ -8,8 +10,6 @@ import {
   switchAnchor,
   type PeriodGranularity,
 } from "@/lib/inventory/periods";
-
-export const dynamic = "force-dynamic";
 
 const GRANULARITIES: { value: PeriodGranularity; label: string }[] = [
   { value: "week", label: "Weekly" },
@@ -27,20 +27,16 @@ function parseAnchor(value: string | null): Date {
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
 }
 
-export default async function PeriodReportsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ g?: string; d?: string }>;
-}) {
-  const user = await requireUser();
+export default function PeriodReportsPage() {
+  const { state, user, hydrated } = useMockStore();
+  if (!user) return null;
+  const searchParams = hydrated ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const mayExport = canViewReports(user.role);
-
-  const params = await searchParams;
-  const granularity = parseGranularity(params.g ?? null);
-  const anchor = parseAnchor(params.d ?? null);
+  const granularity = parseGranularity(searchParams.get("g"));
+  const anchor = parseAnchor(searchParams.get("d"));
   const period = resolvePeriod(granularity, anchor);
 
-  const report = await buildPeriodReport(period);
+  const report = buildPeriodReport(state, period);
   const previous = shiftPeriod(period, -1);
   const next = shiftPeriod(period, 1);
   const todayPeriod = resolvePeriod(granularity, new Date());
@@ -262,12 +258,20 @@ export default async function PeriodReportsPage({
 
       {mayExport ? (
         <p>
-          <a
+          <button
+            type="button"
             className="btn"
-            href={`/reports/periods/export?g=${granularity}&d=${period.start.toISOString().slice(0, 10)}`}
+            onClick={() => downloadCsv(`provi-beans-${period.key}.csv`, [
+              ["Period", period.label],
+              ["Opening on hand", report.openingOnHand],
+              ["Closing on hand", report.closingOnHand],
+              [],
+              ["SKU", "Product", "Received", "Issued", "Returned", "Damaged", "Disposed", "Net"],
+              ...report.byProduct.map((line) => [line.sku, line.name, line.received, line.issued, line.returned, line.damaged, line.disposed, line.netOnHand]),
+            ])}
           >
             Download this period as CSV
-          </a>
+          </button>
         </p>
       ) : null}
 

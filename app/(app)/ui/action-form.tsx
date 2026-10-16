@@ -1,22 +1,12 @@
 "use client";
 
-import { cloneElement, isValidElement, useActionState } from "react";
-import { useFormStatus } from "react-dom";
+import { cloneElement, isValidElement, useState, type SyntheticEvent } from "react";
 import type { ReactElement } from "react";
-import type { FormState } from "@/lib/actions/inventory";
+import type { FormState } from "@/lib/mock-store";
 
-type Action = (state: FormState, formData: FormData) => Promise<FormState>;
+type Action = (formData: FormData) => FormState;
 
 type RenderFields = (state: FormState) => React.ReactNode;
-
-function SubmitButton({ label }: { label: string }) {
-  const { pending } = useFormStatus();
-  return (
-    <button type="submit" className="btn" disabled={pending}>
-      {pending ? "Saving…" : label}
-    </button>
-  );
-}
 
 export function ActionForm({
   action,
@@ -29,10 +19,15 @@ export function ActionForm({
   formId?: string;
   children: React.ReactNode | RenderFields;
 }) {
-  const [state, formAction] = useActionState(action, {});
+  const [state, setState] = useState<FormState>({});
+
+  function submit(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setState(action(new FormData(event.currentTarget)));
+  }
 
   return (
-    <form action={formAction} noValidate data-form={formId}>
+    <form onSubmit={submit} noValidate data-form={formId}>
       {state.ok && state.message ? (
         <p className="notice notice-ok" role="status">
           {state.message}
@@ -48,7 +43,7 @@ export function ActionForm({
       {typeof children === "function" ? children(state) : children}
 
       <div className="actions">
-        <SubmitButton label={submitLabel} />
+        <button type="submit" className="btn">{submitLabel}</button>
       </div>
     </form>
   );

@@ -1,8 +1,9 @@
-import { and, eq, gte, lte, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { lots, movements, products } from "@/lib/db/schema";
-import type { MovementType } from "@/lib/db/schema";
-import { ON_HAND_EFFECT, RESERVED_EFFECT } from "./ledger";
+import {
+  ON_HAND_EFFECT,
+  RESERVED_EFFECT,
+  type MockState,
+  type MovementType,
+} from "@/lib/mock-store";
 
 export type PeriodGranularity = "week" | "month" | "year";
 
@@ -170,29 +171,17 @@ function apply(totals: PeriodTotals, row: Row): void {
   totals.movementCount += 1;
 }
 
-export async function buildPeriodReport(period: Period): Promise<PeriodReport> {
+export function buildPeriodReport(state: MockState, period: Period): PeriodReport {
   const from = period.start.toISOString();
   const to = period.end.toISOString();
-
-  const [prior, current] = await Promise.all([
-    db
-      .select({ type: movements.type, quantity: movements.quantity })
-      .from(movements)
-      .where(lte(movements.createdAt, from)),
-    db
-      .select({
-        type: movements.type,
-        quantity: movements.quantity,
-        createdAt: movements.createdAt,
-        sku: products.sku,
-        name: products.name,
-      })
-      .from(movements)
-      .innerJoin(lots, eq(movements.lotId, lots.id))
-      .innerJoin(products, eq(movements.productId, products.id))
-      .where(and(gte(movements.createdAt, from), lte(movements.createdAt, to)))
-      .orderBy(movements.createdAt, movements.id),
-  ]);
+  const prior = state.movements.filter((movement) => movement.createdAt < from);
+  const current: Row[] = state.movements
+    .filter((movement) => movement.createdAt >= from && movement.createdAt <= to)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id - b.id)
+    .flatMap((movement) => {
+      const product = state.products.find((entry) => entry.id === movement.productId);
+      return product ? [{ type: movement.type, quantity: movement.quantity, createdAt: movement.createdAt, sku: product.sku, name: product.name }] : [];
+    });
 
   let openingOnHand = 0;
   let openingReserved = 0;
@@ -206,7 +195,7 @@ export async function buildPeriodReport(period: Period): Promise<PeriodReport> {
   const totals = emptyTotals();
   const byProduct = new Map<string, ProductLine>();
 
-  for (const row of current as Row[]) {
+  for (const row of current) {
     apply(totals, row);
 
     let line = byProduct.get(row.sku);

@@ -1,17 +1,27 @@
 "use client";
 
 import { ActionForm, Field } from "../ui/action-form";
-import {
-  createDeliveryAction,
-  createProductAction,
-  createSupplierAction,
-} from "@/lib/actions/inventory";
+import { useMockStore } from "@/lib/mock-store";
 
 type Option = { id: number; label: string };
 
 export function ProductForm() {
+  const { createProduct } = useMockStore();
   return (
-    <ActionForm action={createProductAction} submitLabel="Add product">
+    <ActionForm action={(formData) => createProduct({
+      sku: String(formData.get("sku") ?? ""),
+      name: String(formData.get("name") ?? ""),
+      weightGrams: Number(formData.get("weightGrams")),
+      unitPrice: Number(formData.get("unitPrice")),
+      originCountry: String(formData.get("originCountry") || "Vietnam"),
+      originRegion: String(formData.get("originRegion") || "") || null,
+      species: String(formData.get("species") || "") || null,
+      process: String(formData.get("process") || "") || null,
+      roastLevel: String(formData.get("roastLevel") || "") || null,
+      lowStockLevel: Number(formData.get("lowStockLevel")) || 10,
+      reorderPoint: Number(formData.get("reorderPoint")) || 20,
+      nearExpiryDays: Number(formData.get("nearExpiryDays")) || 30,
+    })} submitLabel="Add product">
       {(state) => (
         <div className="form-grid">
           <Field label="SKU" name="sku" error={state.fieldErrors?.sku}>
@@ -68,8 +78,17 @@ export function ProductForm() {
 }
 
 export function SupplierForm() {
+  const { createSupplier } = useMockStore();
   return (
-    <ActionForm action={createSupplierAction} submitLabel="Add supplier">
+    <ActionForm action={(formData) => createSupplier({
+      name: String(formData.get("name") ?? ""),
+      contactName: String(formData.get("contactName") || "") || null,
+      email: String(formData.get("email") || "") || null,
+      phone: String(formData.get("phone") || "") || null,
+      country: String(formData.get("country") || "Vietnam"),
+      address: String(formData.get("address") || "") || null,
+      notes: String(formData.get("notes") || "") || null,
+    })} submitLabel="Add supplier">
       {(state) => (
         <div className="form-grid">
           <Field label="Name" name="name" error={state.fieldErrors?.name}>
@@ -106,8 +125,14 @@ export function SupplierForm() {
 }
 
 export function DeliveryForm({ suppliers }: { suppliers: Option[] }) {
+  const { createDelivery } = useMockStore();
   return (
-    <ActionForm action={createDeliveryAction} submitLabel="Record delivery">
+    <ActionForm action={(formData) => createDelivery({
+      supplierId: Number(formData.get("supplierId")),
+      reference: String(formData.get("reference") || "") || null,
+      receivedAt: String(formData.get("receivedAt") || new Date().toISOString()),
+      notes: String(formData.get("notes") || "") || null,
+    })} submitLabel="Record delivery">
       {(state) => (
         <div className="form-grid">
           <Field label="Supplier" name="supplierId" error={state.fieldErrors?.supplierId}>

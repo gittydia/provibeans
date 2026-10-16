@@ -1,16 +1,12 @@
 "use client";
 
 import { ActionForm, Field } from "@/app/(app)/ui/action-form";
-import {
-  checkoutAction,
-  removeCartItemAction,
-  updateCartItemAction,
-  type CartState,
-} from "@/lib/actions/cart";
+import { useMockStore, type FormState } from "@/lib/mock-store";
 
 export function QuantityControl({ productId, quantity }: { productId: number; quantity: number }) {
+  const { setCartQuantity } = useMockStore();
   return (
-    <ActionForm action={updateCartItemAction} submitLabel="Update">
+    <ActionForm action={(formData) => setCartQuantity(productId, Number(formData.get("quantity")))} submitLabel="Update">
       {() => (
         <>
           <input type="hidden" name="productId" value={productId} />
@@ -34,17 +30,25 @@ export function QuantityControl({ productId, quantity }: { productId: number; qu
 }
 
 export function RemoveButton({ productId }: { productId: number }) {
+  const { setCartQuantity } = useMockStore();
   return (
-    <ActionForm action={removeCartItemAction} submitLabel="Remove">
+    <ActionForm action={() => setCartQuantity(productId, 0)} submitLabel="Remove">
       {() => <input type="hidden" name="productId" value={productId} />}
     </ActionForm>
   );
 }
 
 export function CheckoutForm() {
+  const { checkout } = useMockStore();
   return (
-    <ActionForm action={checkoutAction} submitLabel="Place order request" formId="checkout">
-      {(state: CartState) => (
+    <ActionForm action={(formData) => checkout({
+      customerName: String(formData.get("customerName") ?? ""),
+      business: String(formData.get("business") || "") || null,
+      email: String(formData.get("email") ?? ""),
+      phone: String(formData.get("phone") || "") || null,
+      notes: String(formData.get("notes") || "") || null,
+    })} submitLabel="Place order request" formId="checkout">
+      {(state: FormState) => (
         <>
           {state.reference ? (
             <div className="notice notice-ok" role="status">

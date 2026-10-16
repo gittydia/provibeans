@@ -8,9 +8,59 @@
   --clay: #a65f43;
   --gold: #c8a56a;
 
-  --serif: "Cormorant Garamond", Georgia, serif;
+  /* ---------------------------------------------------------------------------
+     Typography
+
+     The three brand faces below are DECLARED BUT NOT SHIPPED. There is no
+     @font-face, no webfont <link>, no next/font and no font file in the repo, so
+     each declaration resolves to its fallback: Georgia for the serif, the system
+     UI face for the sans, and the local cursive for the script. They are kept
+     because they are the documented identity in DESIGN.md, and the fallbacks
+     are written out in full so the rendered result is deliberate rather than
+     incidental. See docs/typography-standardization.md before changing them.
+     --------------------------------------------------------------------------- */
   --sans: Manrope, "Avenir Next", "Segoe UI", sans-serif;
+  --serif: "Cormorant Garamond", Georgia, serif;
   --script: Caveat, "Segoe Print", cursive;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Type scale. Expressed in rem rather than px so a browser text-size
+     preference is honoured; each value is the exact px size the app already
+     used at the default 16px root, so nothing moves visually. */
+  --text-2xs: 0.625rem;   /* 10px - uppercase micro-labels */
+  --text-xs: 0.6875rem;   /* 11px - field labels, sidebar meta */
+  --text-sm: 0.75rem;     /* 12px - captions, badges, helper text */
+  --text-md: 0.8125rem;   /* 13px - table cells, panel body copy */
+  --text-base: 0.875rem;  /* 14px - application default, buttons */
+  --text-lg: 1.05rem;     /* panel and card headings */
+  --text-xl: 1.9rem;      /* stat figures */
+  --text-2xl: 2rem;       /* sign-in heading */
+  --text-page: clamp(1.6rem, 3vw, 2.1rem);
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-black: 800;    /* the PROVI BEANS wordmark only */
+
+  --leading-none: 1;      /* single-line figures */
+  --leading-tight: 1.1;   /* page headings */
+  --leading-snug: 1.45;   /* clamped multi-line messages */
+  --leading-normal: 1.5;  /* application default */
+  --leading-relaxed: 1.7; /* long-form helper copy */
+
+  --tracking-tight: -0.03em;
+  --tracking-display: -0.055em;
+  --tracking-emphasis: -0.06em; /* <em>. Differs from --tracking-display by 0.005em; kept separate so nothing shifts. Merge them as a deliberate, reviewed change. */
+  --tracking-snug: -0.01em;
+  --tracking-normal: 0;
+  --tracking-code: 0.02em;
+  --tracking-wide: 0.06em;
+  --tracking-wider: 0.08em;
+  --tracking-label: 0.1em;
+  --tracking-caps: 0.12em;
+  --tracking-caps-wide: 0.14em;
+  --tracking-caps-widest: 0.18em;
 
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --motion: 1;
@@ -50,9 +100,9 @@ img {
 
 .eyebrow {
   margin: 0 0 24px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-caps-widest);
   text-transform: uppercase;
 }
 
@@ -61,14 +111,14 @@ h2,
 h3 {
   margin: 0;
   font-family: var(--serif);
-  font-weight: 500;
-  letter-spacing: -0.055em;
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-display);
 }
 
 em {
   font-family: var(--script);
-  font-weight: 500;
-  letter-spacing: -0.06em;
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-emphasis);
   color: var(--gold);
 }
 

@@ -66,11 +66,11 @@ export async function submitOrderAction(
 }
 
 async function guard(
-  run: (actor: string) => Promise<{ ok: boolean; message: string }>,
+  run: (actor: string, actorId: number) => Promise<{ ok: boolean; message: string }>,
 ): Promise<OrderFormState> {
   try {
     const user = await requireUser();
-    const result = await run(user.name);
+    const result = await run(user.name, user.id);
     if (!result.ok) return { error: result.message };
     revalidatePath("/requests");
     revalidatePath("/dashboard");
@@ -86,7 +86,7 @@ export async function confirmOrderAction(
   formData: FormData,
 ): Promise<OrderFormState> {
   const id = Number(formData.get("requestId"));
-  return guard((actor) => confirmOrderRequest(id, actor));
+  return guard((actor, actorId) => confirmOrderRequest(id, actor, actorId));
 }
 
 export async function cancelOrderAction(
@@ -94,7 +94,7 @@ export async function cancelOrderAction(
   formData: FormData,
 ): Promise<OrderFormState> {
   const id = Number(formData.get("requestId"));
-  return guard((actor) => cancelOrderRequest(id, actor));
+  return guard((actor, actorId) => cancelOrderRequest(id, actor, actorId));
 }
 
 export async function fulfilOrderAction(
@@ -102,5 +102,5 @@ export async function fulfilOrderAction(
   formData: FormData,
 ): Promise<OrderFormState> {
   const id = Number(formData.get("requestId"));
-  return guard((actor) => fulfilOrderRequest(id, actor));
+  return guard((actor, actorId) => fulfilOrderRequest(id, actor, actorId));
 }

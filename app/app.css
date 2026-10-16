@@ -69,7 +69,9 @@
   padding-inline: 10px;
 }
 
-.sidebar-closed .side > :not(.sidebar-toggle) {
+/* The bell survives the collapse: it is the one thing that must stay reachable
+   from the 72px rail, so it is exempt from the hide-everything rule. */
+.sidebar-closed .side > :not(.sidebar-toggle):not(.notif-sidebar) {
   display: none;
 }
 

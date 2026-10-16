@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./app.css";
+import "./notifications.css";
 
 export const metadata: Metadata = {
   title: "Provi Beans | Vietnamese specialty coffee, traced lot by lot",

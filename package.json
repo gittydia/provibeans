@@ -11,12 +11,13 @@
         "db:seed": "tsx lib/db/seed.ts",
         "verify:rules": "node scripts/verify-rules.mjs",
         "verify:inventory": "tsx scripts/verify-inventory.mts",
+        "verify:notifications": "tsx scripts/verify-notifications.mts",
         "verify:periods": "tsx scripts/verify-periods.mts",
         "verify": "npm run verify:rules && npm run verify:inventory",
         "verify:smoke": "node scripts/smoke.mjs",
         "verify:cart": "node scripts/smoke-cart.mjs",
         "verify:links": "node scripts/check-links.mjs",
-        "verify:all": "npm run verify:rules && npm run verify:inventory && npm run verify:periods && npm run verify:smoke && npm run verify:cart && npm run verify:links"
+        "verify:all": "npm run verify:rules && npm run verify:inventory && npm run verify:notifications && npm run verify:periods && npm run verify:smoke && npm run verify:cart && npm run verify:links"
     },
     "dependencies": {
         "@neondatabase/serverless": "^1.2.0",

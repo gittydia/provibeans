@@ -162,6 +162,88 @@ record(
   `status=${wrongResponse.status}`,
 );
 
+// ---- notifications surface ------------------------------------------------
+// Seeds one notification for each of the two signed-in users so the HTTP
+// surface is proven to reflect writes without a page refresh, and to prove one
+// user never sees the other's.
+const probeKey = `smoke-probe-${Date.now()}`;
+const inserted = await run(
+  `insert into notifications (user_id, type, severity, title, message, dedupe_key)
+   values ($1, 'LOW_STOCK', 'WARNING', 'Smoke probe', 'Visible without a refresh', $2),
+          ($3, 'EXPIRED', 'CRITICAL', 'Staff only probe', 'Must not leak to admin', $4)`,
+  [admin.id, `${probeKey}-admin`, staff.id, `${probeKey}-staff`],
+);
+record("notification probes were inserted", inserted === 2, `inserted=${inserted}`);
+
+const anonNotif = await fetch(`${base}/api/notifications`, { redirect: "manual" });
+record(
+  "the notification endpoint rejects anonymous callers",
+  anonNotif.status === 401,
+  `status=${anonNotif.status}`,
+);
+
+const notifResponse = await fetch(`${base}/api/notifications?limit=20`, {
+  headers: { cookie: cookieHeader },
+});
+const notifBody = await notifResponse.text();
+let notifPayload = null;
+try {
+  notifPayload = JSON.parse(notifBody);
+} catch {
+  notifPayload = null;
+}
+
+record(
+  "the notification endpoint answers an authenticated caller",
+  notifResponse.status === 200 && notifPayload !== null,
+  `status=${notifResponse.status}`,
+);
+record(
+  "the notification endpoint is not cacheable",
+  (notifResponse.headers.get("cache-control") ?? "").includes("no-store"),
+  notifResponse.headers.get("cache-control") ?? "",
+);
+record(
+  "the payload carries an unread count and a list",
+  typeof notifPayload?.unreadCount === "number" && Array.isArray(notifPayload?.items),
+);
+record(
+  "a notification appears without the page being reloaded",
+  notifPayload?.items?.some((item) => item.title === "Smoke probe"),
+);
+record(
+  "one user never sees another user's notification",
+  !notifPayload?.items?.some((item) => item.title === "Staff only probe"),
+);
+
+const authoritative = await raw(
+  "select count(*)::int as n from notifications where user_id = $1 and read_at is null",
+  [admin.id],
+);
+record(
+  "the reported unread count matches the database",
+  notifPayload?.unreadCount === authoritative[0].n,
+  `api=${notifPayload?.unreadCount} db=${authoritative[0].n}`,
+);
+
+const badCursor = await fetch(`${base}/api/notifications?cursor=%21%21not-a-cursor`, {
+  headers: { cookie: cookieHeader },
+});
+record("a malformed cursor is refused, not crashed on", badCursor.status === 400, `status=${badCursor.status}`);
+
+const dashboardWithBell = await (await authed("/dashboard")).text();
+record(
+  "the shell renders the notification bell",
+  dashboardWithBell.includes("aria-label=\"Notifications") ||
+    dashboardWithBell.includes("Notifications, none unread") ||
+    dashboardWithBell.includes("Notifications,"),
+  "bell markup missing from the shell",
+);
+
+await run("delete from notifications where dedupe_key = any($1)", [
+  [`${probeKey}-admin`, `${probeKey}-staff`],
+]);
+
 await run("delete from sessions where token = $1", [token]);
 
 console.log("Provi Beans - HTTP smoke test");

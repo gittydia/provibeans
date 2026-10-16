@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   auditLogs,
@@ -10,10 +10,15 @@ import {
   products,
 } from "@/lib/db/schema";
 import type { OrderRequestStatus } from "@/lib/db/schema";
+import { publishOrderNotification } from "@/lib/notifications/service";
+import { orderDedupeKey, titleFor } from "@/lib/notifications/policy";
 import { allocateFefo, buildLotViews, fefoPlan, type FefoAllocation } from "./ledger";
-import { evaluateAlerts } from "./alerts";
+import { evaluateAlertsSafely } from "./alerts";
 
 export type OrderLineInput = { productId: number; quantity: number };
+
+/** Thrown inside a transaction to abort it when a compare-and-set finds no row. */
+class StaleOrderState extends Error {}
 
 export type OrderLineResult = {
   productId: number;
@@ -183,10 +188,19 @@ export async function submitOrderRequest(input: {
         after: JSON.stringify({ lines: results.map((r) => `${r.sku}:${r.requested}`) }),
       });
 
+    await publishOrderNotification(tx, {
+      type: "ORDER_RECEIVED",
+      severity: "INFO",
+      title: titleFor("ORDER_RECEIVED"),
+      message: `Request ${reference} from ${customerName} is awaiting confirmation.`,
+      orderRequestId: request.id,
+      dedupeKey: orderDedupeKey(request.id, "NEW"),
+    });
+
     return { reference, results };
   });
 
-  await evaluateAlerts();
+  await evaluateAlertsSafely();
 
   const summary = created.results
     .map((line) => `${line.sku}: ${line.reserved}/${line.requested}`)
@@ -233,7 +247,11 @@ export async function loadOrderRequest(id: number) {
 }
 
 /** Cancelling releases every live reservation so the stock returns to available. */
-export async function cancelOrderRequest(id: number, actor: string): Promise<{ ok: boolean; message: string }> {
+export async function cancelOrderRequest(
+  id: number,
+  actor: string,
+  actorId?: number | null,
+): Promise<{ ok: boolean; message: string }> {
   const loaded = await loadOrderRequest(id);
   if (!loaded) return { ok: false, message: "That request does not exist." };
   if (loaded.request.status === "CANCELLED") return { ok: false, message: "That request is already cancelled." };
@@ -241,131 +259,207 @@ export async function cancelOrderRequest(id: number, actor: string): Promise<{ o
     return { ok: false, message: "A fulfilled request cannot be cancelled. Issue a reversal instead." };
   }
 
-  await db.transaction(async (tx) => {
-    const now = new Date().toISOString();
+  try {
+    await db.transaction(async (tx) => {
+      const now = new Date().toISOString();
 
-    for (const { reservation } of loaded.reservations) {
-      if (reservation.movementId === null) continue;
-      await tx.insert(movements).values({
-        lotId: reservation.lotId,
-        productId: loaded.lines.find((entry) => entry.line.id === reservation.orderRequestLineId)?.line
-          .productId ?? 0,
-        type: "CANCEL",
-        quantity: reservation.quantity,
-        reason: `Order ${loaded.request.reference} cancelled`,
-        reference: loaded.request.reference,
-        performedBy: null,
+      const claimed = await tx
+        .update(orderRequests)
+        .set({ status: "CANCELLED", updatedAt: now })
+        .where(and(eq(orderRequests.id, id), inArray(orderRequests.status, ["NEW", "CONFIRMED"])))
+        .returning({ id: orderRequests.id });
+
+      // The pre-read above is a fast path only. This compare-and-set is the
+      // authority: if another operator moved the row first it matches no row and
+      // rolls the whole transaction back rather than issuing a second set of
+      // CANCEL movements against stock someone else already released.
+      if (claimed.length === 0) throw new StaleOrderState("request is no longer cancellable");
+
+      for (const { reservation } of loaded.reservations) {
+        if (reservation.movementId === null) continue;
+        await tx.insert(movements).values({
+          lotId: reservation.lotId,
+          productId: loaded.lines.find((entry) => entry.line.id === reservation.orderRequestLineId)?.line
+            .productId ?? 0,
+          type: "CANCEL",
+          quantity: reservation.quantity,
+          reason: `Order ${loaded.request.reference} cancelled`,
+          reference: loaded.request.reference,
+          performedBy: null,
+        });
+        await tx
+          .update(orderReservations)
+          .set({ releasedAt: now })
+          .where(eq(orderReservations.id, reservation.id));
+      }
+
+      for (const { line } of loaded.lines) {
+        await tx.update(orderRequestLines).set({ status: "CANCELLED" }).where(eq(orderRequestLines.id, line.id));
+      }
+
+      await tx.insert(auditLogs).values({
+        actorId: null,
+        actorName: actor,
+        action: "ORDER_CANCEL",
+        entity: "order_request",
+        entityId: loaded.request.reference,
+        before: JSON.stringify({ status: loaded.request.status }),
+        after: JSON.stringify({ status: "CANCELLED" }),
       });
-      await tx
-        .update(orderReservations)
-        .set({ releasedAt: now })
-        .where(eq(orderReservations.id, reservation.id));
-    }
 
-    for (const { line } of loaded.lines) {
-      await tx.update(orderRequestLines).set({ status: "CANCELLED" }).where(eq(orderRequestLines.id, line.id));
-    }
-
-    await tx
-      .update(orderRequests)
-      .set({ status: "CANCELLED", updatedAt: now })
-      .where(eq(orderRequests.id, id));
-
-    await tx.insert(auditLogs).values({
-      actorId: null,
-      actorName: actor,
-      action: "ORDER_CANCEL",
-      entity: "order_request",
-      entityId: loaded.request.reference,
-      before: JSON.stringify({ status: loaded.request.status }),
-      after: JSON.stringify({ status: "CANCELLED" }),
+      await publishOrderNotification(tx, {
+        type: "ORDER_CANCELLED",
+        severity: "INFO",
+        title: titleFor("ORDER_CANCELLED"),
+        message: `${loaded.request.reference} was cancelled by ${actor}; reserved stock released.`,
+        orderRequestId: id,
+        dedupeKey: orderDedupeKey(id, "CANCELLED"),
+        excludeUserId: actorId ?? null,
+      });
     });
-  });
+  } catch (error) {
+    if (error instanceof StaleOrderState) {
+      return { ok: false, message: "That request was already handled by someone else." };
+    }
+    throw error;
+  }
 
-  await evaluateAlerts();
+  await evaluateAlertsSafely();
   return { ok: true, message: `${loaded.request.reference} cancelled and stock released.` };
 }
 
 /** Fulfilment issues the reserved stock and closes the request. */
-export async function fulfilOrderRequest(id: number, actor: string): Promise<{ ok: boolean; message: string }> {
+export async function fulfilOrderRequest(
+  id: number,
+  actor: string,
+  actorId?: number | null,
+): Promise<{ ok: boolean; message: string }> {
   const loaded = await loadOrderRequest(id);
   if (!loaded) return { ok: false, message: "That request does not exist." };
   if (loaded.request.status !== "NEW" && loaded.request.status !== "CONFIRMED") {
     return { ok: false, message: "Only a new or confirmed request can be fulfilled." };
   }
 
-  await db.transaction(async (tx) => {
-    const now = new Date().toISOString();
+  try {
+    await db.transaction(async (tx) => {
+      const now = new Date().toISOString();
 
-    for (const { reservation } of loaded.reservations) {
-      const line = loaded.lines.find((entry) => entry.line.id === reservation.orderRequestLineId);
-      if (!line) continue;
+      const claimed = await tx
+        .update(orderRequests)
+        .set({ status: "FULFILLED", updatedAt: now })
+        .where(and(eq(orderRequests.id, id), inArray(orderRequests.status, ["NEW", "CONFIRMED"])))
+        .returning({ id: orderRequests.id });
 
-      await tx.insert(movements).values({
-        lotId: reservation.lotId,
-        productId: line.line.productId,
-        type: "ISSUE",
-        quantity: reservation.quantity,
-        reason: `Fulfilled order ${loaded.request.reference}`,
-        reference: loaded.request.reference,
-        performedBy: null,
+      if (claimed.length === 0) throw new StaleOrderState("request is no longer fulfillable");
+
+      for (const { reservation } of loaded.reservations) {
+        const line = loaded.lines.find((entry) => entry.line.id === reservation.orderRequestLineId);
+        if (!line) continue;
+
+        await tx.insert(movements).values({
+          lotId: reservation.lotId,
+          productId: line.line.productId,
+          type: "ISSUE",
+          quantity: reservation.quantity,
+          reason: `Fulfilled order ${loaded.request.reference}`,
+          reference: loaded.request.reference,
+          performedBy: null,
+        });
+
+        await tx.insert(movements).values({
+          lotId: reservation.lotId,
+          productId: line.line.productId,
+          type: "RELEASE",
+          quantity: reservation.quantity,
+          reason: `Reservation consumed by ${loaded.request.reference}`,
+          reference: loaded.request.reference,
+          performedBy: null,
+        });
+
+        await tx
+          .update(orderReservations)
+          .set({ releasedAt: now })
+          .where(eq(orderReservations.id, reservation.id));
+      }
+
+      await tx.insert(auditLogs).values({
+        actorId: null,
+        actorName: actor,
+        action: "ORDER_FULFIL",
+        entity: "order_request",
+        entityId: loaded.request.reference,
+        before: JSON.stringify({ status: loaded.request.status }),
+        after: JSON.stringify({ status: "FULFILLED" }),
       });
 
-      await tx.insert(movements).values({
-        lotId: reservation.lotId,
-        productId: line.line.productId,
-        type: "RELEASE",
-        quantity: reservation.quantity,
-        reason: `Reservation consumed by ${loaded.request.reference}`,
-        reference: loaded.request.reference,
-        performedBy: null,
+      await publishOrderNotification(tx, {
+        type: "ORDER_FULFILLED",
+        severity: "INFO",
+        title: titleFor("ORDER_FULFILLED"),
+        message: `${loaded.request.reference} was fulfilled by ${actor}; stock has been issued.`,
+        orderRequestId: id,
+        dedupeKey: orderDedupeKey(id, "FULFILLED"),
+        excludeUserId: actorId ?? null,
       });
-
-      await tx
-        .update(orderReservations)
-        .set({ releasedAt: now })
-        .where(eq(orderReservations.id, reservation.id));
-    }
-
-    await tx
-      .update(orderRequests)
-      .set({ status: "FULFILLED", updatedAt: now })
-      .where(eq(orderRequests.id, id));
-
-    await tx.insert(auditLogs).values({
-      actorId: null,
-      actorName: actor,
-      action: "ORDER_FULFIL",
-      entity: "order_request",
-      entityId: loaded.request.reference,
-      before: JSON.stringify({ status: loaded.request.status }),
-      after: JSON.stringify({ status: "FULFILLED" }),
     });
-  });
+  } catch (error) {
+    if (error instanceof StaleOrderState) {
+      return { ok: false, message: "That request was already handled by someone else." };
+    }
+    throw error;
+  }
 
-  await evaluateAlerts();
+  await evaluateAlertsSafely();
   return { ok: true, message: `${loaded.request.reference} fulfilled and stock issued.` };
 }
 
-export async function confirmOrderRequest(id: number, actor: string): Promise<{ ok: boolean; message: string }> {
+export async function confirmOrderRequest(
+  id: number,
+  actor: string,
+  actorId?: number | null,
+): Promise<{ ok: boolean; message: string }> {
   const request = await db.query.orderRequests.findFirst({ where: eq(orderRequests.id, id) });
   if (!request) return { ok: false, message: "That request does not exist." };
   if (request.status !== "NEW") return { ok: false, message: "Only a new request can be confirmed." };
 
-  await db
-    .update(orderRequests)
-    .set({ status: "CONFIRMED", updatedAt: new Date().toISOString() })
-    .where(eq(orderRequests.id, id));
+  try {
+    await db.transaction(async (tx) => {
+      const now = new Date().toISOString();
 
-  await db.insert(auditLogs).values({
-    actorId: null,
-    actorName: actor,
-    action: "ORDER_CONFIRM",
-    entity: "order_request",
-    entityId: request.reference,
-    before: JSON.stringify({ status: request.status }),
-    after: JSON.stringify({ status: "CONFIRMED" }),
-  });
+      const claimed = await tx
+        .update(orderRequests)
+        .set({ status: "CONFIRMED", updatedAt: now })
+        .where(and(eq(orderRequests.id, id), eq(orderRequests.status, "NEW")))
+        .returning({ id: orderRequests.id });
+
+      if (claimed.length === 0) throw new StaleOrderState("request is no longer new");
+
+      await tx.insert(auditLogs).values({
+        actorId: null,
+        actorName: actor,
+        action: "ORDER_CONFIRM",
+        entity: "order_request",
+        entityId: request.reference,
+        before: JSON.stringify({ status: request.status }),
+        after: JSON.stringify({ status: "CONFIRMED" }),
+      });
+
+      await publishOrderNotification(tx, {
+        type: "ORDER_CONFIRMED",
+        severity: "INFO",
+        title: titleFor("ORDER_CONFIRMED"),
+        message: `${request.reference} was confirmed by ${actor}.`,
+        orderRequestId: id,
+        dedupeKey: orderDedupeKey(id, "CONFIRMED"),
+        excludeUserId: actorId ?? null,
+      });
+    });
+  } catch (error) {
+    if (error instanceof StaleOrderState) {
+      return { ok: false, message: "That request was already handled by someone else." };
+    }
+    throw error;
+  }
 
   return { ok: true, message: `${request.reference} confirmed.` };
 }

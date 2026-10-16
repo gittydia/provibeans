@@ -34,6 +34,7 @@ async function main() {
   // `cascade` handles referential order; `restart identity` keeps serial ids at 1 on every seed.
   await db.execute(
     sql`truncate table
+      notifications,
       cart_items, carts,
       order_reservations, order_request_lines, order_requests,
       audit_logs, alerts, stock_movements, lots, deliveries,

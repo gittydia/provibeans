@@ -1,7 +1,8 @@
-import { and, eq, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { alerts, movements } from "@/lib/db/schema";
 import type { Alert } from "@/lib/db/schema";
+import { reconcileAlertNotifications } from "@/lib/notifications/service";
 import { buildLotViews, productSummaries } from "./ledger";
 
 export type AlertDraft = {
@@ -21,17 +22,15 @@ function identity(alert: AlertDraft): string {
 }
 
 async function resolveStale(existing: Alert[], active: Map<string, AlertDraft>) {
-  const stale = existing.filter((alert) => !active.has(identity(alert)));
-  if (stale.length === 0) return 0;
+  const staleIds = existing.filter((alert) => !active.has(identity(alert))).map((alert) => alert.id);
+  if (staleIds.length === 0) return 0;
 
-  const now = new Date().toISOString();
-  for (const alert of stale) {
-    await db
-      .update(alerts)
-      .set({ resolvedAt: now })
-      .where(eq(alerts.id, alert.id));
-  }
-  return stale.length;
+  await db
+    .update(alerts)
+    .set({ resolvedAt: new Date().toISOString() })
+    .where(inArray(alerts.id, staleIds));
+
+  return staleIds.length;
 }
 
 /**
@@ -115,7 +114,10 @@ export async function evaluateAlerts(): Promise<{ raised: number; resolved: numb
         // date function would not compare correctly against it.
         sql`${movements.createdAt} >= ${new Date(Date.now() - 30 * 86_400_000).toISOString()}`,
       ),
-    );
+    )
+    // Newest first so that when several counts for one lot collapse onto a
+    // single identity below, the most recent count is the one that survives.
+    .orderBy(desc(movements.createdAt));
 
   for (const variance of variances) {
     drafts.push({
@@ -128,17 +130,80 @@ export async function evaluateAlerts(): Promise<{ raised: number; resolved: numb
   }
 
   const active = new Map(drafts.map((draft) => [identity(draft), draft]));
-  const existing = await currentAlerts();
-  const resolved = await resolveStale(existing, active);
+  // The apply phase runs inside a transaction holding an advisory lock, so two
+  // overlapping evaluations cannot interleave "read what is open" with "resolve
+  // what is no longer true". Without it, one run could resolve an alert another
+  // had just opened from a fresher snapshot. The derivation above still runs
+  // outside the lock, so the worst a loser can do is apply a slightly stale
+  // view; the next evaluation converges it.
+  const { raised, resolved } = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(7834501)`);
 
-  const existingIdentities = new Set(existing.filter((a) => !a.resolvedAt).map(identity));
-  const toInsert = drafts.filter((draft) => !existingIdentities.has(identity(draft)));
+    const existing = await tx
+      .select()
+      .from(alerts)
+      .where(isNull(alerts.resolvedAt));
+    const staleIds = existing.filter((alert) => !active.has(identity(alert))).map((a) => a.id);
+    if (staleIds.length > 0) {
+      await tx
+        .update(alerts)
+        .set({ resolvedAt: new Date().toISOString() })
+        .where(inArray(alerts.id, staleIds));
+    }
 
-  if (toInsert.length > 0) {
-    await db.insert(alerts).values(toInsert);
+    const openIdentities = new Set(existing.map(identity));
+    // From `active`, not `drafts`: several COUNT movements on one lot collapse
+    // onto a single identity, and inserting the uncollapsed list would rely on
+    // `alerts_open_unique` to discard duplicates whose surviving message would
+    // then depend on which row the database happened to keep.
+    const toInsert = [...active.values()].filter((draft) => !openIdentities.has(identity(draft)));
+
+    const inserted =
+      toInsert.length > 0
+        ? await tx.insert(alerts).values(toInsert).onConflictDoNothing().returning({ id: alerts.id })
+        : [];
+
+    await reconcileAlertNotifications(tx);
+
+    return { raised: inserted.length, resolved: staleIds.length };
+  });
+
+  return { raised, resolved };
+}
+
+/**
+ * Every caller runs this after its business mutation has already committed, so
+ * an escaping exception would report a successful stock movement as a failure.
+ * Failures are therefore logged and swallowed; notification creation is a
+ * reconciliation, so the next run repairs the gap instead of losing it.
+ *
+ * Returns whether the evaluation completed, because the daily sweep must not
+ * treat a failed attempt as the day's work done.
+ */
+export async function evaluateAlertsSafely(): Promise<boolean> {
+  try {
+    await evaluateAlerts();
+    return true;
+  } catch (error) {
+    console.error("[alerts] evaluation failed; notifications will retry on next run", error);
+    return false;
   }
+}
 
-  return { raised: toInsert.length, resolved };
+const sweepState = globalThis as unknown as { proviAlertSweepDay?: string };
+
+/**
+ * Expiry becomes true with the passage of time alone, so a client polling for
+ * notifications must still discover a lot that expired overnight. Bounded to once
+ * per calendar day per process to keep the full ledger fold off the poll path.
+ */
+export async function maybeRunDailySweep(): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10);
+  if (sweepState.proviAlertSweepDay === today) return;
+  // Recorded only on success: marking the day done before the work succeeds
+  // would suppress every later attempt until tomorrow, hiding an overnight
+  // expiry for the rest of the UTC day.
+  if (await evaluateAlertsSafely()) sweepState.proviAlertSweepDay = today;
 }
 
 export async function openAlerts(): Promise<Alert[]> {

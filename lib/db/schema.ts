@@ -19,6 +19,19 @@ import {
  */
 const now = sql`to_char(now() at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
 
+const NOTIFICATION_TYPES = [
+  "LOW_STOCK",
+  "REORDER",
+  "NEAR_EXPIRY",
+  "EXPIRED",
+  "QUARANTINE",
+  "COUNT_VARIANCE",
+  "ORDER_RECEIVED",
+  "ORDER_CONFIRMED",
+  "ORDER_FULFILLED",
+  "ORDER_CANCELLED",
+] as const;
+
 export const users = pgTable(
   "users",
   {
@@ -216,6 +229,73 @@ export const alerts = pgTable(
   (table) => [
     index("alerts_type_idx").on(table.type),
     index("alerts_resolved_idx").on(table.resolvedAt),
+    // Makes "at most one open alert per (type, product, lot)" a database rule
+    // rather than a read-then-insert assumption, which is what lets notification
+    // fan-out key off the alert id. The COALESCE key MUST stay in sync with the
+    // `identity()` helper in lib/inventory/alerts.ts.
+    uniqueIndex("alerts_open_unique")
+      .on(
+        sql`${table.type}`,
+        sql`coalesce(${table.productId}, 0)`,
+        sql`coalesce(${table.lotId}, 0)`,
+      )
+      .where(sql`${table.resolvedAt} is null`),
+  ],
+);
+
+/**
+ * Per-recipient inbox entries, kept separate from `alerts` because an alert is
+ * global derived state that resolves itself, while a notification is immutable
+ * history owned by one person and must outlive the alert it came from. The
+ * display text is copied rather than joined back for that reason.
+ *
+ * `dedupeKey` is the idempotency anchor: `alert:<id>` for alert-backed entries,
+ * `order:<id>:<status>` for order lifecycle. It is stable for as long as the
+ * condition is open and changes when the condition recurs, so a repeated
+ * evaluation cannot duplicate an entry but a genuine recurrence still notifies.
+ */
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: text("type", { enum: NOTIFICATION_TYPES }).notNull(),
+    severity: text("severity", { enum: ["INFO", "WARNING", "CRITICAL"] })
+      .notNull()
+      .default("INFO"),
+    title: text("title").notNull(),
+    message: text("message").notNull(),
+    entityType: text("entity_type", {
+      enum: ["alert", "order_request", "lot", "product"],
+    }),
+    entityId: text("entity_id"),
+    // Source links are nullable and null out if the source is deleted, so losing
+    // the link never deletes inbox history.
+    alertId: integer("alert_id").references(() => alerts.id, {
+      onDelete: "set null",
+    }),
+    orderRequestId: integer("order_request_id").references(
+      () => orderRequests.id,
+      { onDelete: "set null" },
+    ),
+    dedupeKey: text("dedupe_key").notNull(),
+    readAt: text("read_at"),
+    createdAt: text("created_at").notNull().default(now),
+  },
+  (table) => [
+    uniqueIndex("notifications_user_dedupe_idx").on(table.userId, table.dedupeKey),
+    // id is the tiebreaker because created_at is millisecond text and two
+    // notifications for one recipient can land in the same millisecond.
+    index("notifications_user_recent_idx").on(
+      table.userId,
+      table.createdAt.desc(),
+      table.id.desc(),
+    ),
+    index("notifications_user_unread_idx")
+      .on(table.userId)
+      .where(sql`${table.readAt} is null`),
   ],
 );
 
@@ -345,6 +425,7 @@ export const orderReservations = pgTable(
 export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),
   movements: many(movements),
+  notifications: many(notifications),
 }));
 
 export const suppliersRelations = relations(suppliers, ({ many }) => ({
@@ -401,6 +482,10 @@ export type OrderRequest = typeof orderRequests.$inferSelect;
 export type OrderRequestLine = typeof orderRequestLines.$inferSelect;
 export type OrderRequestStatus = (typeof orderRequests.$inferSelect)["status"];
 export type OrderLineStatus = (typeof orderRequestLines.$inferSelect)["status"];
+
+export type Notification = typeof notifications.$inferSelect;
+export type NotificationSeverity = Notification["severity"];
+export type NotificationEntityType = NonNullable<Notification["entityType"]>;
 
 export const MOVEMENT_LABELS: Record<MovementType, string> = {
   RECEIPT: "Stock received",

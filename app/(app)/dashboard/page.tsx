@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth/session";
 import { MOVEMENT_LABELS } from "@/lib/db/schema";
-import { evaluateAlerts, openAlerts } from "@/lib/inventory/alerts";
+import { evaluateAlertsSafely, openAlerts } from "@/lib/inventory/alerts";
 import { buildLotViews, productSummaries, recentMovements } from "@/lib/inventory/ledger";
 import { productArtwork } from "@/lib/product-images";
 
@@ -30,7 +30,7 @@ function LotStateBadge({
 export default async function DashboardPage() {
   await requireUser();
 
-  await evaluateAlerts();
+  await evaluateAlertsSafely();
   const [summaries, lotViews, alerts, movements] = await Promise.all([
     productSummaries(),
     buildLotViews(),

@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { deliveries, products, suppliers } from "@/lib/db/schema";
 import type { MovementType } from "@/lib/db/schema";
 import { requireUser, canManageMasterData } from "@/lib/auth/session";
-import { evaluateAlerts } from "@/lib/inventory/alerts";
+import { evaluateAlertsSafely } from "@/lib/inventory/alerts";
 import {
   adjustLotStock,
   createLot,
@@ -66,7 +66,7 @@ export async function createLotAction(_prev: FormState, formData: FormData): Pro
   });
 
   if (result.ok) {
-    await evaluateAlerts();
+    await evaluateAlertsSafely();
     refresh(["/lots"]);
   }
   return toState(result);
@@ -87,7 +87,7 @@ export async function issueStockAction(_prev: FormState, formData: FormData): Pr
   });
 
   if (result.ok) {
-    await evaluateAlerts();
+    await evaluateAlertsSafely();
     refresh(["/issue"]);
   }
   return toState(result);
@@ -121,7 +121,7 @@ export async function adjustStockAction(_prev: FormState, formData: FormData): P
   });
 
   if (result.ok) {
-    await evaluateAlerts();
+    await evaluateAlertsSafely();
     refresh(["/issue", "/lots"]);
   }
   return toState(result);
@@ -131,7 +131,7 @@ export async function quarantineLotAction(_prev: FormState, formData: FormData):
   const user = await requireUser();
   const result = await quarantineLot(user, integer(formData, "lotId"), text(formData, "reason"));
   if (result.ok) {
-    await evaluateAlerts();
+    await evaluateAlertsSafely();
     refresh(["/lots", "/issue"]);
   }
   return toState(result);
@@ -154,7 +154,7 @@ export async function reverseMovementAction(
   const user = await requireUser();
   const result = await reverseMovement(user, integer(formData, "movementId"), text(formData, "reason"));
   if (result.ok) {
-    await evaluateAlerts();
+    await evaluateAlertsSafely();
     refresh(["/reports", "/dashboard"]);
   }
   return toState(result);

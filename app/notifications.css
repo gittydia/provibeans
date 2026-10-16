@@ -1,0 +1,269 @@
+﻿
+/* ==========================================================================
+   Notifications
+   The bell sits in the espresso sidebar, so its panel is drawn on the light
+   parchment surface to stay readable outside the dark field. Severity reuses the
+   existing badge colours rather than introducing new ones.
+   ========================================================================== */
+
+.notif {
+  position: relative;
+}
+
+.notif-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid rgb(245 240 232 / 0.28);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ivory);
+  cursor: pointer;
+}
+
+.notif-toggle:hover {
+  background: rgb(245 240 232 / 0.1);
+}
+
+.notif-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 19px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--clay);
+  color: var(--ivory);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+}
+
+.notif-panel {
+  position: absolute;
+  z-index: 6;
+  top: calc(100% + 8px);
+  left: 0;
+  display: grid;
+  width: min(340px, calc(100vw - 32px));
+  max-height: min(70dvh, 460px);
+  overflow-y: auto;
+  background: var(--app-surface);
+  border: 1px solid var(--app-line);
+  border-radius: var(--radius-md);
+  box-shadow: 0 18px 40px rgb(44 31 27 / 0.28);
+  color: var(--app-ink);
+}
+
+.notif-panel-head,
+.notif-panel-foot {
+  position: sticky;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+  background: var(--app-sunk);
+  font-size: 12px;
+}
+
+.notif-panel-head {
+  top: 0;
+  border-bottom: 1px solid var(--app-line);
+}
+
+.notif-panel-foot {
+  bottom: 0;
+  border-top: 1px solid var(--app-line);
+}
+
+.notif-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--app-accent);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.notif-link:disabled {
+  color: var(--app-ink-faint);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.notif-state {
+  margin: 0;
+  padding: 22px 16px;
+  color: var(--app-ink-faint);
+  font-size: 12px;
+  text-align: center;
+}
+
+.notif-state-error {
+  padding: 9px 14px;
+  background: #f6e2dc;
+  color: var(--app-crit);
+  text-align: left;
+}
+
+.notif-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notif-item {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  padding: 11px 14px 11px 22px;
+  border-bottom: 1px solid var(--app-line);
+}
+
+.notif-item:last-child {
+  border-bottom: 0;
+}
+
+/* Unread carries a rule as well as the dot so the distinction survives a
+   greyscale or high-contrast rendering. */
+.notif-item-read {
+  background: var(--app-surface);
+  opacity: 0.62;
+}
+
+.notif-item-read .notif-item-title {
+  font-weight: 400;
+  color: var(--app-ink-soft);
+}
+
+.notif-item:not(.notif-item-read) {
+  background: #fbf6ec;
+}
+
+.notif-dot {
+  position: absolute;
+  top: 15px;
+  left: 9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--clay);
+}
+
+.notif-item-top {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.notif-item-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.notif-item-message {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--app-ink-soft);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.notif-item-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.notif-toasts {
+  position: fixed;
+  z-index: 30;
+  right: 16px;
+  bottom: 16px;
+  display: grid;
+  gap: 8px;
+  width: min(320px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.notif-toast {
+  display: grid;
+  gap: 3px;
+  padding: 11px 14px;
+  border-left: 3px solid var(--app-info);
+  border-radius: var(--radius-sm);
+  background: var(--app-surface);
+  box-shadow: 0 12px 30px rgb(44 31 27 / 0.24);
+  pointer-events: auto;
+}
+
+.notif-toast .badge-crit { border-left-color: var(--app-crit); }
+.notif-toast .badge-warn { border-left-color: var(--app-warn); }
+.notif-toast .badge-info { border-left-color: var(--app-info); }
+
+.notif-toast .notif-link {
+  justify-self: end;
+}
+
+/* The mobile bar carries the bell only; the sidebar is off-canvas there. */
+.mobile-bar {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .notif-sidebar {
+    display: none;
+  }
+
+  .mobile-bar {
+    position: fixed;
+    top: 10px;
+    right: 12px;
+    z-index: 3;
+    display: block;
+  }
+
+  .notif-bar .notif-panel {
+    left: auto;
+    right: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  .notif-toggle {
+    width: 44px;
+    height: 44px;
+  }
+
+  .notif-item-actions .notif-link,
+  .notif-panel-head .notif-link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .notif-toasts {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notif-panel {
+    transition: none;
+  }
+}

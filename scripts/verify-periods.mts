@@ -31,8 +31,8 @@ const { productSummaries } = ledger;
 await ensureSchema();
 
 await db.execute(
-    sql`truncate table
-      audit_logs, alerts, sessions,
+sql`truncate table
+      notifications, audit_logs, alerts, sessions,
       order_reservations, order_request_lines, order_requests,
       stock_movements, lots, deliveries, products, suppliers, users
       restart identity cascade`,

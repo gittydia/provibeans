@@ -136,7 +136,7 @@ export function NotificationBell({ variant }: { variant: "sidebar" | "bar" }) {
             <p className="notif-state">Checking for updates…</p>
           ) : items.length === 0 ? (
             <p className="notif-state">
-              Nothing needs your attention. Low stock, expiring lots and new requests appear here.
+              Nothing needs your attention. Low stock, expiring batches and new requests appear here.
             </p>
           ) : (
             <ul className="notif-list">

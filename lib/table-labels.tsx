@@ -44,7 +44,7 @@ export function TableLabels() {
 
     stamp(document);
 
-    // Rows added later (a form writing a new lot, a request changing state)
+    // Rows added later (a form writing a new batch, a request changing state)
     // arrive without the attribute, so re-stamp whenever a table body changes.
     const observer = new MutationObserver((records) => {
       for (const record of records) {

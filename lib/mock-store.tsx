@@ -25,7 +25,7 @@ export type MovementType =
   | "DISPOSE"
   | "ADJUSTMENT"
   | "COUNT";
-export type LotStatus = "ACTIVE" | "QUARANTINE" | "DEPLETED" | "DISPOSED";
+export type BatchStatus = "ACTIVE" | "QUARANTINE" | "DEPLETED" | "DISPOSED";
 export type RequestStatus = "NEW" | "CONFIRMED" | "FULFILLED" | "CANCELLED";
 export type NotificationSeverity = "INFO" | "WARNING" | "CRITICAL";
 
@@ -73,7 +73,7 @@ export type Delivery = {
   notes: string | null;
 };
 
-export type Lot = {
+export type Batch = {
   id: number;
   code: string;
   productId: number;
@@ -83,14 +83,14 @@ export type Lot = {
   packDate: string | null;
   bestBeforeDate: string | null;
   expiryDate: string | null;
-  status: LotStatus;
+  status: BatchStatus;
   quarantineReason: string | null;
   notes: string | null;
 };
 
 export type Movement = {
   id: number;
-  lotId: number;
+  batchId: number;
   productId: number;
   type: MovementType;
   quantity: number;
@@ -118,7 +118,7 @@ export type OrderLine = {
   quantityReserved: number;
   status: "RESERVED" | "PARTIAL" | "SHORT" | "CANCELLED";
   note: string | null;
-  allocations: { lotId: number; quantity: number }[];
+  allocations: { batchId: number; quantity: number }[];
 };
 
 export type OrderRequest = {
@@ -148,13 +148,13 @@ export type NotificationItem = {
 };
 
 export type MockState = {
-  version: 1;
+  version: 2;
   currentUserId: number | null;
   users: User[];
   products: Product[];
   suppliers: Supplier[];
   deliveries: Delivery[];
-  lots: Lot[];
+  batches: Batch[];
   movements: Movement[];
   requests: OrderRequest[];
   audit: AuditEntry[];
@@ -171,8 +171,8 @@ export type FormState = {
   shortLines?: { sku: string; requested: number; reserved: number; note: string | null }[];
 };
 
-export type LotView = {
-  lot: Lot;
+export type BatchView = {
+  batch: Batch;
   product: Product;
   onHand: number;
   reserved: number;
@@ -185,7 +185,7 @@ export type LotView = {
   isIssuable: boolean;
 };
 
-const STORAGE_KEY = "provi-beans-mock-store-v1";
+const STORAGE_KEY = "provi-beans-mock-store-v2";
 export const DEMO_PASSWORD = "ProviBeans2026";
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -253,8 +253,8 @@ function seedState(): MockState {
     { id: 2, supplierId: 2, reference: "NE-2026-044", receivedAt: timestampDaysAgo(45), notes: "Partial receipt, second pallet short by 20 bags." },
     { id: 3, supplierId: 1, reference: "CH-2026-022", receivedAt: timestampDaysAgo(12), notes: "Restock for Huế and Saigon." },
   ];
-  const lots: Lot[] = [
-    { id: 1, code: "HN-2601-A", productId: 1, deliveryId: 1, receivedAt: timestampDaysAgo(120), roastDate: daysFromNow(-115), packDate: daysFromNow(-110), bestBeforeDate: daysFromNow(60), expiryDate: daysFromNow(95), status: "ACTIVE", quarantineReason: null, notes: "Opening lot." },
+  const batches: Batch[] = [
+    { id: 1, code: "HN-2601-A", productId: 1, deliveryId: 1, receivedAt: timestampDaysAgo(120), roastDate: daysFromNow(-115), packDate: daysFromNow(-110), bestBeforeDate: daysFromNow(60), expiryDate: daysFromNow(95), status: "ACTIVE", quarantineReason: null, notes: "Opening batch." },
     { id: 2, code: "HN-2602-B", productId: 1, deliveryId: 3, receivedAt: timestampDaysAgo(12), roastDate: daysFromNow(-8), packDate: daysFromNow(-6), bestBeforeDate: daysFromNow(11), expiryDate: daysFromNow(26), status: "ACTIVE", quarantineReason: null, notes: "Will trip the near-expiry threshold." },
     { id: 3, code: "HUE-2510-A", productId: 2, deliveryId: 1, receivedAt: timestampDaysAgo(120), roastDate: daysFromNow(-118), packDate: daysFromNow(-114), bestBeforeDate: daysFromNow(-30), expiryDate: daysFromNow(-9), status: "ACTIVE", quarantineReason: null, notes: "Already expired, must not issue." },
     { id: 4, code: "HUE-2602-B", productId: 2, deliveryId: 2, receivedAt: timestampDaysAgo(45), roastDate: daysFromNow(-40), packDate: daysFromNow(-37), bestBeforeDate: daysFromNow(38), expiryDate: daysFromNow(74), status: "ACTIVE", quarantineReason: null, notes: "Healthy replacement stock." },
@@ -271,10 +271,10 @@ function seedState(): MockState {
     [6, "RECEIPT", 400, "Full delivery", null, 120], [6, "ISSUE", 372, "Consistent supply", null, 60], [6, "RETURN", 8, "Customer return, intact", null, 18],
     [7, "RECEIPT", 220, "Restock", null, 12], [7, "ISSUE", 64, "Cafe Adriatico", "SO-1101", 4], [7, "RESERVE", 30, "Held for confirmed order", null, 2],
   ] as const;
-  const movements: Movement[] = raw.map(([lotId, type, quantity, reason, reference, ago], index) => ({
+  const movements: Movement[] = raw.map(([batchId, type, quantity, reason, reference, ago], index) => ({
     id: index + 1,
-    lotId,
-    productId: lots.find((lot) => lot.id === lotId)?.productId ?? 1,
+    batchId,
+    productId: batches.find((batch) => batch.id === batchId)?.productId ?? 1,
     type,
     quantity,
     reason,
@@ -283,26 +283,26 @@ function seedState(): MockState {
     createdAt: timestampDaysAgo(ago),
   }));
   return {
-    version: 1,
+    version: 2,
     currentUserId: null,
     users,
     products,
     suppliers,
     deliveries,
-    lots,
+    batches,
     movements,
     requests: [
-      { id: 1, reference: "ORD-2026-0007", customerName: "Mara Santos", business: "Kettle and Co", email: "mara@kettle.example", phone: "+63 917 555 0117", notes: "Please confirm the Friday delivery window.", status: "NEW", createdAt: timestampDaysAgo(2), updatedAt: timestampDaysAgo(2), lines: [{ id: 1, productId: 1, quantityRequested: 18, quantityReserved: 18, status: "RESERVED", note: null, allocations: [{ lotId: 2, quantity: 18 }] }] },
+      { id: 1, reference: "ORD-2026-0007", customerName: "Mara Santos", business: "Kettle and Co", email: "mara@kettle.example", phone: "+63 917 555 0117", notes: "Please confirm the Friday delivery window.", status: "NEW", createdAt: timestampDaysAgo(2), updatedAt: timestampDaysAgo(2), lines: [{ id: 1, productId: 1, quantityRequested: 18, quantityReserved: 18, status: "RESERVED", note: null, allocations: [{ batchId: 2, quantity: 18 }] }] },
     ],
     audit: [
-      { id: 1, actorName: "Jenna Cruz", action: "RECEIVE", entity: "delivery", entityId: "CH-2026-018", before: null, after: JSON.stringify({ lots: 3 }), createdAt: timestampDaysAgo(120) },
-      { id: 2, actorName: "Ariel Mendoza", action: "QUARANTINE", entity: "lot", entityId: "HUE-2603-DMG", before: JSON.stringify({ status: "ACTIVE" }), after: JSON.stringify({ status: "QUARANTINE" }), createdAt: timestampDaysAgo(10) },
+      { id: 1, actorName: "Jenna Cruz", action: "RECEIVE", entity: "delivery", entityId: "CH-2026-018", before: null, after: JSON.stringify({ batches: 3 }), createdAt: timestampDaysAgo(120) },
+      { id: 2, actorName: "Ariel Mendoza", action: "QUARANTINE", entity: "batch", entityId: "HUE-2603-DMG", before: JSON.stringify({ status: "ACTIVE" }), after: JSON.stringify({ status: "QUARANTINE" }), createdAt: timestampDaysAgo(10) },
     ],
     notifications: [
-      { id: 101, type: "EXPIRED", severity: "CRITICAL", title: "Lot expired", message: "Lot HUE-2510-A has expired and still holds stock. It cannot be issued.", entityType: "lot", entityId: "3", readAt: null, createdAt: timestampDaysAgo(0.01) },
+      { id: 101, type: "EXPIRED", severity: "CRITICAL", title: "Batch expired", message: "Batch HUE-2510-A has expired and still holds stock. It cannot be issued.", entityType: "batch", entityId: "3", readAt: null, createdAt: timestampDaysAgo(0.01) },
       { id: 102, type: "LOW_STOCK", severity: "CRITICAL", title: "Low stock", message: "PB-SGN-250 is below its low-stock level.", entityType: "product", entityId: "3", readAt: null, createdAt: timestampDaysAgo(0.08) },
       { id: 103, type: "ORDER_RECEIVED", severity: "INFO", title: "New order request", message: "Request ORD-2026-0007 from Kettle and Co is awaiting confirmation.", entityType: "order_request", entityId: "1", readAt: null, createdAt: timestampDaysAgo(2) },
-      { id: 104, type: "QUARANTINE", severity: "WARNING", title: "Lot quarantined", message: "Lot HUE-2603-DMG is quarantined pending review.", entityType: "lot", entityId: "5", readAt: timestampDaysAgo(1), createdAt: timestampDaysAgo(2) },
+      { id: 104, type: "QUARANTINE", severity: "WARNING", title: "Batch quarantined", message: "Batch HUE-2603-DMG is quarantined pending review.", entityType: "batch", entityId: "5", readAt: timestampDaysAgo(1), createdAt: timestampDaysAgo(2) },
     ],
     cart: {},
   };
@@ -329,7 +329,7 @@ function loadState(): MockState {
     const value = window.localStorage.getItem(STORAGE_KEY);
     if (!value) return seedState();
     const parsed: unknown = JSON.parse(value);
-    if (typeof parsed !== "object" || parsed === null || !("version" in parsed) || parsed.version !== 1) return seedState();
+    if (typeof parsed !== "object" || parsed === null || !("version" in parsed) || parsed.version !== 2) return seedState();
     return parsed as MockState;
   } catch {
     return seedState();
@@ -348,8 +348,8 @@ export function canViewReports(role: Role): boolean {
   return role === "ADMIN" || role === "OWNER";
 }
 
-export function balancesForLot(state: MockState, lotId: number): { onHand: number; reserved: number } {
-  return state.movements.filter((movement) => movement.lotId === lotId).reduce(
+export function balancesForBatch(state: MockState, batchId: number): { onHand: number; reserved: number } {
+  return state.movements.filter((movement) => movement.batchId === batchId).reduce(
     (balance, movement) => {
       const onHand = ON_HAND_EFFECT[movement.type];
       const reserved = RESERVED_EFFECT[movement.type];
@@ -361,24 +361,24 @@ export function balancesForLot(state: MockState, lotId: number): { onHand: numbe
   );
 }
 
-export function effectiveDate(lot: Lot): string {
-  return lot.expiryDate ?? lot.bestBeforeDate ?? lot.receivedAt.slice(0, 10);
+export function effectiveDate(batch: Batch): string {
+  return batch.expiryDate ?? batch.bestBeforeDate ?? batch.receivedAt.slice(0, 10);
 }
 
-export function buildLotViews(state: MockState): LotView[] {
+export function buildBatchViews(state: MockState): BatchView[] {
   const today = new Date().toISOString().slice(0, 10);
-  return state.lots
-    .map((lot) => {
-      const product = state.products.find((entry) => entry.id === lot.productId);
+  return state.batches
+    .map((batch) => {
+      const product = state.products.find((entry) => entry.id === batch.productId);
       if (!product) return null;
-      const { onHand, reserved } = balancesForLot(state, lot.id);
-      const date = effectiveDate(lot);
+      const { onHand, reserved } = balancesForBatch(state, batch.id);
+      const date = effectiveDate(batch);
       const daysToExpiry = Math.round((new Date(date).getTime() - new Date(today).getTime()) / 86_400_000);
       const isExpired = daysToExpiry < 0;
-      const isQuarantined = lot.status === "QUARANTINE";
-      const isIssuable = lot.status === "ACTIVE" && !isExpired;
+      const isQuarantined = batch.status === "QUARANTINE";
+      const isIssuable = batch.status === "ACTIVE" && !isExpired;
       return {
-        lot,
+        batch,
         product,
         onHand,
         reserved,
@@ -391,14 +391,14 @@ export function buildLotViews(state: MockState): LotView[] {
         isIssuable,
       };
     })
-    .filter((view): view is LotView => view !== null)
-    .sort((left, right) => left.lot.code.localeCompare(right.lot.code));
+    .filter((view): view is BatchView => view !== null)
+    .sort((left, right) => left.batch.code.localeCompare(right.batch.code));
 }
 
 export function productSummaries(state: MockState) {
-  const views = buildLotViews(state);
+  const views = buildBatchViews(state);
   return [...state.products].sort((a, b) => a.sku.localeCompare(b.sku)).map((product) => {
-    const own = views.filter((view) => view.lot.productId === product.id);
+    const own = views.filter((view) => view.batch.productId === product.id);
     const onHand = own.reduce((sum, view) => sum + view.onHand, 0);
     const reserved = own.reduce((sum, view) => sum + view.reserved, 0);
     const available = own.reduce((sum, view) => sum + view.available, 0);
@@ -414,19 +414,19 @@ export function openAlerts(state: MockState) {
     if (summary.stockState === "LOW") alerts.push({ id: `low-${summary.product.id}`, type: "LOW_STOCK", severity: "CRITICAL", message: `${summary.product.sku} has ${summary.available} available, at or below its low-stock level of ${summary.product.lowStockLevel}.` });
     else if (summary.stockState === "REORDER") alerts.push({ id: `reorder-${summary.product.id}`, type: "REORDER", severity: "WARNING", message: `${summary.product.sku} has reached its reorder point.` });
   }
-  for (const view of buildLotViews(state)) {
-    if (view.isExpired && view.onHand > 0) alerts.push({ id: `expired-${view.lot.id}`, type: "EXPIRED", severity: "CRITICAL", message: `Lot ${view.lot.code} has expired and still holds ${view.onHand} unit(s).` });
-    else if (view.isQuarantined) alerts.push({ id: `quarantine-${view.lot.id}`, type: "QUARANTINE", severity: "WARNING", message: `Lot ${view.lot.code} is quarantined: ${view.lot.quarantineReason ?? "no reason recorded"}.` });
-    else if (view.isNearExpiry && view.onHand > 0) alerts.push({ id: `near-${view.lot.id}`, type: "NEAR_EXPIRY", severity: "WARNING", message: `Lot ${view.lot.code} reaches its effective date in ${view.daysToExpiry} day(s).` });
+  for (const view of buildBatchViews(state)) {
+    if (view.isExpired && view.onHand > 0) alerts.push({ id: `expired-${view.batch.id}`, type: "EXPIRED", severity: "CRITICAL", message: `Batch ${view.batch.code} has expired and still holds ${view.onHand} unit(s).` });
+    else if (view.isQuarantined) alerts.push({ id: `quarantine-${view.batch.id}`, type: "QUARANTINE", severity: "WARNING", message: `Batch ${view.batch.code} is quarantined: ${view.batch.quarantineReason ?? "no reason recorded"}.` });
+    else if (view.isNearExpiry && view.onHand > 0) alerts.push({ id: `near-${view.batch.id}`, type: "NEAR_EXPIRY", severity: "WARNING", message: `Batch ${view.batch.code} reaches its effective date in ${view.daysToExpiry} day(s).` });
   }
   return alerts;
 }
 
 export function fefoPlan(state: MockState, productId: number) {
-  return buildLotViews(state)
+  return buildBatchViews(state)
     .filter((view) => view.product.id === productId && view.isIssuable && view.available > 0)
     .sort((a, b) => a.daysToExpiry - b.daysToExpiry)
-    .map((view) => ({ lotId: view.lot.id, lotCode: view.lot.code, effectiveDate: view.effectiveDate, daysToExpiry: view.daysToExpiry, available: view.available }));
+    .map((view) => ({ batchId: view.batch.id, batchCode: view.batch.code, effectiveDate: view.effectiveDate, daysToExpiry: view.daysToExpiry, available: view.available }));
 }
 
 type Store = {
@@ -436,13 +436,14 @@ type Store = {
   login: (email: string, password: string) => FormState;
   logout: () => void;
   reset: () => void;
-  createLot: (input: Omit<Lot, "id" | "status" | "quarantineReason"> & { quantity: number }) => FormState;
-  quarantineLot: (lotId: number, reason: string) => FormState;
-  releaseLot: (lotId: number) => FormState;
-  issueStock: (input: { productId: number; quantity: number; lotId: number | null; reason: string | null; reference: string | null }) => FormState;
-  adjustStock: (input: { lotId: number; type: MovementType; quantity: number; reason: string; reference: string | null }) => FormState;
+  createLot: (input: Omit<Batch, "id" | "status" | "quarantineReason"> & { quantity: number }) => FormState;
+  quarantineLot: (batchId: number, reason: string) => FormState;
+  releaseLot: (batchId: number) => FormState;
+  issueStock: (input: { productId: number; quantity: number; batchId: number | null; reason: string | null; reference: string | null }) => FormState;
+  adjustStock: (input: { batchId: number; type: MovementType; quantity: number; reason: string; reference: string | null }) => FormState;
   reverseMovement: (movementId: number, reason: string) => FormState;
   createProduct: (product: Omit<Product, "id" | "isActive">) => FormState;
+  setProductActive: (productId: number, active: boolean) => FormState;
   createSupplier: (supplier: Omit<Supplier, "id">) => FormState;
   createDelivery: (delivery: Omit<Delivery, "id">) => FormState;
   updateRequest: (requestId: number, status: Exclude<RequestStatus, "NEW">) => FormState;
@@ -514,53 +515,53 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
 
   const createLot = useCallback<Store["createLot"]>((input) => {
     const fieldErrors: Record<string, string> = {};
-    if (!input.code.trim()) fieldErrors.code = "A lot code is required.";
-    if (stateRef.current.lots.some((lot) => lot.code.toLowerCase() === input.code.trim().toLowerCase())) fieldErrors.code = "Already in use.";
+    if (!input.code.trim()) fieldErrors.code = "A batch code is required.";
+    if (stateRef.current.batches.some((batch) => batch.code.toLowerCase() === input.code.trim().toLowerCase())) fieldErrors.code = "Already in use.";
     if (!stateRef.current.products.some((product) => product.id === input.productId)) fieldErrors.productId = "Choose a product.";
     if (!Number.isInteger(input.quantity) || input.quantity <= 0) fieldErrors.quantity = "Enter a whole number above zero.";
     const dates = [input.roastDate, input.packDate, input.bestBeforeDate, input.expiryDate].filter((date): date is string => Boolean(date));
     if (input.expiryDate && dates.some((date) => date > input.expiryDate!)) fieldErrors.expiryDate = "Expiry must be the latest date.";
     if (Object.keys(fieldErrors).length) return { error: "Check the highlighted fields.", fieldErrors };
     commit((draft) => {
-      const lot: Lot = { ...input, id: nextId(draft.lots), code: input.code.trim().toUpperCase(), status: "ACTIVE", quarantineReason: null };
-      draft.lots.push(lot);
-      addMovement(draft, { lotId: lot.id, productId: lot.productId, type: "RECEIPT", quantity: input.quantity, reason: "Stock received", reference: input.deliveryId ? draft.deliveries.find((delivery) => delivery.id === input.deliveryId)?.reference ?? null : null });
-      audit(draft, "RECEIVE", "lot", lot.code, null, { quantity: input.quantity });
+      const batch: Batch = { ...input, id: nextId(draft.batches), code: input.code.trim().toUpperCase(), status: "ACTIVE", quarantineReason: null };
+      draft.batches.push(batch);
+      addMovement(draft, { batchId: batch.id, productId: batch.productId, type: "RECEIPT", quantity: input.quantity, reason: "Stock received", reference: input.deliveryId ? draft.deliveries.find((delivery) => delivery.id === input.deliveryId)?.reference ?? null : null });
+      audit(draft, "RECEIVE", "batch", batch.code, null, { quantity: input.quantity });
     });
     return { ok: true, message: `${input.code.trim().toUpperCase()} received.` };
   }, [addMovement, audit, commit]);
 
-  const quarantineLot = useCallback((lotId: number, reason: string): FormState => {
+  const quarantineLot = useCallback((batchId: number, reason: string): FormState => {
     if (!reason.trim()) return { error: "A quarantine reason is required.", fieldErrors: { reason: "Required." } };
-    const lot = stateRef.current.lots.find((entry) => entry.id === lotId);
-    if (!lot) return { error: "Lot not found." };
+    const batch = stateRef.current.batches.find((entry) => entry.id === batchId);
+    if (!batch) return { error: "Batch not found." };
     commit((draft) => {
-      const target = draft.lots.find((entry) => entry.id === lotId)!;
+      const target = draft.batches.find((entry) => entry.id === batchId)!;
       target.status = "QUARANTINE";
       target.quarantineReason = reason.trim();
-      addMovement(draft, { lotId, productId: target.productId, type: "QUARANTINE", quantity: Math.max(1, balancesForLot(draft, lotId).onHand), reason: reason.trim(), reference: null });
-      audit(draft, "QUARANTINE", "lot", target.code, { status: lot.status }, { status: target.status });
+      addMovement(draft, { batchId, productId: target.productId, type: "QUARANTINE", quantity: Math.max(1, balancesForBatch(draft, batchId).onHand), reason: reason.trim(), reference: null });
+      audit(draft, "QUARANTINE", "batch", target.code, { status: batch.status }, { status: target.status });
     });
-    return { ok: true, message: `${lot.code} quarantined.` };
+    return { ok: true, message: `${batch.code} quarantined.` };
   }, [addMovement, audit, commit]);
 
-  const releaseLot = useCallback((lotId: number): FormState => {
-    const lot = stateRef.current.lots.find((entry) => entry.id === lotId);
-    if (!lot) return { error: "Lot not found." };
+  const releaseLot = useCallback((batchId: number): FormState => {
+    const batch = stateRef.current.batches.find((entry) => entry.id === batchId);
+    if (!batch) return { error: "Batch not found." };
     commit((draft) => {
-      const target = draft.lots.find((entry) => entry.id === lotId)!;
+      const target = draft.batches.find((entry) => entry.id === batchId)!;
       target.status = "ACTIVE";
       target.quarantineReason = null;
-      addMovement(draft, { lotId, productId: target.productId, type: "UNQUARANTINE", quantity: Math.max(1, balancesForLot(draft, lotId).onHand), reason: "Released from quarantine", reference: null });
-      audit(draft, "UNQUARANTINE", "lot", target.code, { status: lot.status }, { status: target.status });
+      addMovement(draft, { batchId, productId: target.productId, type: "UNQUARANTINE", quantity: Math.max(1, balancesForBatch(draft, batchId).onHand), reason: "Released from quarantine", reference: null });
+      audit(draft, "UNQUARANTINE", "batch", target.code, { status: batch.status }, { status: target.status });
     });
-    return { ok: true, message: `${lot.code} released to available stock.` };
+    return { ok: true, message: `${batch.code} released to available stock.` };
   }, [addMovement, audit, commit]);
 
   const issueStock = useCallback<Store["issueStock"]>((input) => {
     if (!Number.isInteger(input.quantity) || input.quantity <= 0) return { error: "Enter a whole number above zero.", fieldErrors: { quantity: "Invalid quantity." } };
-    const plans = input.lotId
-      ? fefoPlan(stateRef.current, input.productId).filter((plan) => plan.lotId === input.lotId)
+    const plans = input.batchId
+      ? fefoPlan(stateRef.current, input.productId).filter((plan) => plan.batchId === input.batchId)
       : fefoPlan(stateRef.current, input.productId);
     if (plans.reduce((sum, plan) => sum + plan.available, 0) < input.quantity) return { error: "There is not enough issuable stock for this movement." };
     commit((draft) => {
@@ -568,7 +569,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       for (const plan of plans) {
         const quantity = Math.min(plan.available, remaining);
         if (quantity <= 0) continue;
-        addMovement(draft, { lotId: plan.lotId, productId: input.productId, type: "ISSUE", quantity, reason: input.reason, reference: input.reference });
+        addMovement(draft, { batchId: plan.batchId, productId: input.productId, type: "ISSUE", quantity, reason: input.reason, reference: input.reference });
         remaining -= quantity;
         if (remaining === 0) break;
       }
@@ -578,17 +579,17 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   }, [addMovement, audit, commit]);
 
   const adjustStock = useCallback<Store["adjustStock"]>((input): FormState => {
-    const lot = stateRef.current.lots.find((entry) => entry.id === input.lotId);
-    if (!lot) return { error: "Choose a valid lot.", fieldErrors: { lotId: "Invalid lot." } };
+    const batch = stateRef.current.batches.find((entry) => entry.id === input.batchId);
+    if (!batch) return { error: "Choose a valid batch.", fieldErrors: { batchId: "Invalid batch." } };
     if (!Number.isInteger(input.quantity) || input.quantity <= 0) return { error: "Enter a whole number above zero.", fieldErrors: { quantity: "Invalid quantity." } };
-    const balance = balancesForLot(stateRef.current, input.lotId);
+    const balance = balancesForBatch(stateRef.current, input.batchId);
     if (["DAMAGE", "DISPOSE"].includes(input.type) && input.quantity > balance.onHand - balance.reserved) return { error: "That movement exceeds unreserved stock." };
     if (["RELEASE", "CANCEL"].includes(input.type) && input.quantity > balance.reserved) return { error: "That movement exceeds reserved stock." };
     commit((draft) => {
-      addMovement(draft, { ...input, productId: lot.productId });
-      audit(draft, input.type, "lot", lot.code, null, { quantity: input.quantity });
+      addMovement(draft, { ...input, productId: batch.productId });
+      audit(draft, input.type, "batch", batch.code, null, { quantity: input.quantity });
     });
-    return { ok: true, message: `${MOVEMENT_LABELS[input.type]} on ${lot.code}.` };
+    return { ok: true, message: `${MOVEMENT_LABELS[input.type]} on ${batch.code}.` };
   }, [addMovement, audit, commit]);
 
   const reverseMovement = useCallback((movementId: number, reason: string): FormState => {
@@ -596,7 +597,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     if (!original) return { error: "Movement not found." };
     if (stateRef.current.movements.some((movement) => movement.reversesId === movementId)) return { error: "This movement has already been reversed." };
     commit((draft) => {
-      addMovement(draft, { lotId: original.lotId, productId: original.productId, type: original.type, quantity: -original.quantity, reason: reason.trim() || `Reversal of #${movementId}`, reference: original.reference, reversesId: movementId });
+      addMovement(draft, { batchId: original.batchId, productId: original.productId, type: original.type, quantity: -original.quantity, reason: reason.trim() || `Reversal of #${movementId}`, reference: original.reference, reversesId: movementId });
       audit(draft, "REVERSE", "movement", String(movementId), original, null);
     });
     return { ok: true, message: `Movement #${movementId} reversed.` };
@@ -614,6 +615,28 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     commit((draft) => { draft.products.push({ ...product, id: nextId(draft.products), sku, isActive: true }); });
     return { ok: true, message: `${sku} added to the catalogue.` };
   }, [commit]);
+
+  /**
+   * Retires a product instead of deleting it. Batches and movements reference the
+   * product, so removing the row would leave the ledger pointing at nothing and
+   * `/reports` printing movements with no SKU. Deactivating keeps that history
+   * readable while taking the product out of circulation: it stops appearing in
+   * the receive and issue pickers, and `setCartQuantity` already refuses an
+   * inactive product.
+   */
+  const setProductActive = useCallback<Store["setProductActive"]>((productId, active) => {
+    const product = stateRef.current.products.find((entry) => entry.id === productId);
+    if (!product) return { error: "Product not found." };
+    if (product.isActive === active) return { error: `${product.sku} is already ${active ? "active" : "inactive"}.` };
+    commit((draft) => {
+      const target = draft.products.find((entry) => entry.id === productId)!;
+      target.isActive = active;
+      audit(draft, active ? "ACTIVATE" : "DEACTIVATE", "product", target.sku, { isActive: product.isActive }, { isActive: active });
+    });
+    return active
+      ? { ok: true, message: `${product.sku} is active again.` }
+      : { ok: true, message: `${product.sku} deactivated. Its batches and history are kept.` };
+  }, [audit, commit]);
 
   const createSupplier = useCallback<Store["createSupplier"]>((supplier) => {
     if (!supplier.name.trim()) return { error: "A supplier name is required.", fieldErrors: { name: "Required." } };
@@ -636,13 +659,13 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     commit((draft) => {
       const target = draft.requests.find((entry) => entry.id === requestId)!;
       if (status === "CANCELLED") {
-        for (const line of target.lines) for (const allocation of line.allocations) addMovement(draft, { lotId: allocation.lotId, productId: line.productId, type: "CANCEL", quantity: allocation.quantity, reason: `Cancelled ${target.reference}`, reference: target.reference });
+        for (const line of target.lines) for (const allocation of line.allocations) addMovement(draft, { batchId: allocation.batchId, productId: line.productId, type: "CANCEL", quantity: allocation.quantity, reason: `Cancelled ${target.reference}`, reference: target.reference });
         target.lines.forEach((line) => { line.status = "CANCELLED"; });
       }
       if (status === "FULFILLED") {
         for (const line of target.lines) for (const allocation of line.allocations) {
-          addMovement(draft, { lotId: allocation.lotId, productId: line.productId, type: "RELEASE", quantity: allocation.quantity, reason: `Fulfilled ${target.reference}`, reference: target.reference });
-          addMovement(draft, { lotId: allocation.lotId, productId: line.productId, type: "ISSUE", quantity: allocation.quantity, reason: `Fulfilled ${target.reference}`, reference: target.reference });
+          addMovement(draft, { batchId: allocation.batchId, productId: line.productId, type: "RELEASE", quantity: allocation.quantity, reason: `Fulfilled ${target.reference}`, reference: target.reference });
+          addMovement(draft, { batchId: allocation.batchId, productId: line.productId, type: "ISSUE", quantity: allocation.quantity, reason: `Fulfilled ${target.reference}`, reference: target.reference });
         }
       }
       target.status = status;
@@ -687,12 +710,12 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
         const productId = Number(productIdText);
         const plans = fefoPlan(draft, productId);
         let remaining = quantity;
-        const allocations: { lotId: number; quantity: number }[] = [];
+        const allocations: { batchId: number; quantity: number }[] = [];
         for (const plan of plans) {
           const take = Math.min(plan.available, remaining);
           if (take <= 0) continue;
-          allocations.push({ lotId: plan.lotId, quantity: take });
-          addMovement(draft, { lotId: plan.lotId, productId, type: "RESERVE", quantity: take, reason: `Held for ${reference}`, reference });
+          allocations.push({ batchId: plan.batchId, quantity: take });
+          addMovement(draft, { batchId: plan.batchId, productId, type: "RESERVE", quantity: take, reason: `Held for ${reference}`, reference });
           remaining -= take;
           if (!remaining) break;
         }
@@ -723,6 +746,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     adjustStock,
     reverseMovement,
     createProduct,
+    setProductActive,
     createSupplier,
     createDelivery,
     updateRequest,
@@ -731,7 +755,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     pushNotification,
     setCartQuantity,
     checkout,
-  }), [state, hydrated, login, logout, reset, createLot, quarantineLot, releaseLot, issueStock, adjustStock, reverseMovement, createProduct, createSupplier, createDelivery, updateRequest, markNotificationRead, markAllNotificationsRead, pushNotification, setCartQuantity, checkout]);
+  }), [state, hydrated, login, logout, reset, createLot, quarantineLot, releaseLot, issueStock, adjustStock, reverseMovement, createProduct, setProductActive, createSupplier, createDelivery, updateRequest, markNotificationRead, markAllNotificationsRead, pushNotification, setCartQuantity, checkout]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

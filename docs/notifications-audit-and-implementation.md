@@ -73,7 +73,7 @@ reorder level, approaching expiration, expired stock, and unresolved count varia
    stock movement had already committed, with no `try/catch`. A throw reported a successful
    issue as a failure.
 4. **Unsynchronised derivation.** `evaluateAlerts()` did read-then-insert with no database
-   uniqueness, so two overlapping runs could open duplicate alerts for the same lot.
+   uniqueness, so two overlapping runs could open duplicate alerts for the same batch.
 5. **Wasted work.** A full ledger fold on every dashboard load and after every mutation, and
    `resolveStale()` issued one UPDATE per stale row.
 
@@ -108,7 +108,7 @@ Polling was chosen as the single mechanism: correct everywhere, zero new depende
 (`EventSource` is a browser primitive but buys nothing if the nudge cannot cross instances),
 and testable by the existing HTTP harness. At three users the request cost is negligible.
 
-The poller is also the thing that eventually notices a **time-driven** condition: a lot can
+The poller is also the thing that eventually notices a **time-driven** condition: a batch can
 cross its expiry date overnight with nobody touching the dashboard. `maybeRunDailySweep()` in
 `lib/inventory/alerts.ts` runs the full evaluation at most once per calendar day per process,
 so the ledger fold stays off the poll path.
@@ -188,7 +188,7 @@ was deliberately not changed, with reasoning recorded below.
 | # | Severity | Defect | Disposition |
 |---|---|---|---|
 | 2 | Medium | Overlapping evaluations could interleave "read open alerts" with "resolve stale", letting one run resolve an alert another had just opened | **Fixed** — apply phase moved into a transaction holding `pg_advisory_xact_lock` |
-| 3 | Low | `toInsert` was built from the raw `drafts` array, so several `COUNT_VARIANCE` drafts for one lot relied on `alerts_open_unique` to discard duplicates, leaving a nondeterministic surviving message | **Fixed** — insert from the collapsed `active` map, and order the variance query newest-first so the most recent count wins deterministically |
+| 3 | Low | `toInsert` was built from the raw `drafts` array, so several `COUNT_VARIANCE` drafts for one batch relied on `alerts_open_unique` to discard duplicates, leaving a nondeterministic surviving message | **Fixed** — insert from the collapsed `active` map, and order the variance query newest-first so the most recent count wins deterministically |
 | 4 | Low | `maybeRunDailySweep()` recorded the day *before* evaluating, so one transient failure suppressed every later attempt until the next UTC day | **Fixed** — `evaluateAlertsSafely()` returns success, and the day marker is written only on success |
 | 5 | Low | The dropdown footer counted unread among the loaded page, so a user with 25 unread saw "20 unread" in the footer while the badge said 25 | **Fixed** — footer now renders the authoritative `unreadCount` |
 | 1 | Medium | Order notifications are written inside the business transaction, so a notification-table failure would roll back the order | **Not changed** — see below |
@@ -476,8 +476,8 @@ persistence and cross-tab sync are correct by construction and need a human pass
    and the service is tested for exact-once traversal, but the cursor walks *backwards through
    history*, so it cannot be used for reconnect recovery — recovery works by re-reading the
    latest page.
-6. **`COUNT_VARIANCE` resolution is unchanged.** `identity()` collapses variances by lot, so
-   a lot with several count movements in the 30-day window yields one notification keyed to
+6. **`COUNT_VARIANCE` resolution is unchanged.** `identity()` collapses variances by batch, so
+   a batch with several count movements in the 30-day window yields one notification keyed to
    one alert row. Per-count-event granularity would require changing the alert derivation
    itself, which would risk `verify-inventory`/`verify-periods`.
 7. **Order mutations still write `actorId: null`.** Order transitions pass the acting user id
@@ -497,7 +497,7 @@ persistence and cross-tab sync are correct by construction and need a human pass
     two overlapping evaluations can still apply slightly stale derived views in sequence. The
     apply phase cannot interleave and the next evaluation converges the state, but the
     strongest fix — threading a transaction through `productSummaries()` and
-    `buildLotViews()` so the whole derivation shares one snapshot — was not taken, because it
+    `buildBatchViews()` so the whole derivation shares one snapshot — was not taken, because it
     would change the ledger module's public signature.
 11. **The dormant backend still writes notification rows** that nothing reads in mock mode.
     Harmless dead write traffic, retained so `verify:notifications` stays meaningful. Removing

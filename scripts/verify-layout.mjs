@@ -49,7 +49,7 @@ const VIEWPORTS = [
 
 const ROUTES = [
   "/dashboard",
-  "/lots",
+  "/batches",
   "/issue",
   "/catalog",
   "/reports",

@@ -1,12 +1,14 @@
 "use client";
 
-import { buildLotViews, fefoPlan, useMockStore } from "@/lib/mock-store";
+import { buildBatchViews, fefoPlan, useMockStore } from "@/lib/mock-store";
 import { AdjustForm, IssueForm, ReverseForm } from "./forms";
 
 export default function IssuePage() {
   const { state } = useMockStore();
-  const views = buildLotViews(state);
-  const productRows = [...state.products].sort((a, b) => a.name.localeCompare(b.name));
+  const views = buildBatchViews(state);
+  const productRows = [...state.products]
+    .filter((product) => product.isActive)
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const productOptions = productRows.map((product) => ({
     id: product.id,
@@ -14,8 +16,8 @@ export default function IssuePage() {
   }));
 
   const lotOptions = views.map((view) => ({
-    id: view.lot.id,
-    label: `${view.lot.code} — ${view.product.sku} (${view.available} available)`,
+    id: view.batch.id,
+    label: `${view.batch.code} — ${view.product.sku} (${view.available} available)`,
     available: view.available,
     issuable: view.isIssuable,
   }));
@@ -43,7 +45,7 @@ export default function IssuePage() {
         <div>
           <h1>Issue &amp; movements</h1>
           <p>
-            Leave the lot empty to let FEFO allocate across valid lots. Expired and quarantined stock is excluded
+            Leave the batch empty to let FEFO allocate across valid batches. Expired and quarantined stock is excluded
             automatically and can never be issued.
           </p>
         </div>
@@ -53,10 +55,10 @@ export default function IssuePage() {
         <section className="panel">
           <header>
             <h2>Issue stock</h2>
-            <p>FEFO allocation when no lot is named.</p>
+            <p>FEFO allocation when no batch is named.</p>
           </header>
           <div className="panel-body">
-            <IssueForm products={productOptions} lots={lotOptions} />
+            <IssueForm products={productOptions} batches={lotOptions} />
           </div>
         </section>
 
@@ -66,7 +68,7 @@ export default function IssuePage() {
             <p>Reserve, release, return, damage, dispose or count.</p>
           </header>
           <div className="panel-body">
-            <AdjustForm lots={lotOptions} />
+            <AdjustForm batches={lotOptions} />
           </div>
         </section>
       </div>
@@ -74,10 +76,10 @@ export default function IssuePage() {
       <section className="panel">
         <header>
           <h2>FEFO recommendation</h2>
-          <p>The lot that should leave first, per product.</p>
+          <p>The batch that should leave first, per product.</p>
         </header>
         {recommendations.length === 0 ? (
-          <p className="empty">No issuable stock. Every lot is expired, quarantined or depleted.</p>
+          <p className="empty">No issuable stock. Every batch is expired, quarantined or depleted.</p>
         ) : (
           <table>
             <thead>
@@ -86,7 +88,7 @@ export default function IssuePage() {
                 <th scope="col">Issue first</th>
                 <th scope="col">Effective date</th>
                 <th scope="col" className="num">Days</th>
-                <th scope="col" className="num">Lots in play</th>
+                <th scope="col" className="num">Batches in play</th>
                 <th scope="col" className="num">Issuable total</th>
               </tr>
             </thead>
@@ -97,7 +99,7 @@ export default function IssuePage() {
                     {row.product.sku}
                     <div className="faint">{row.product.name}</div>
                   </td>
-                  <td className="code">{row.first.lotCode}</td>
+                  <td className="code">{row.first.batchCode}</td>
                   <td>{row.first.effectiveDate}</td>
                   <td className="num">{row.first.daysToExpiry}</td>
                   <td className="num">{row.spread}</td>

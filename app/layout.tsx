@@ -5,9 +5,9 @@ import "./notifications.css";
 import { MockStoreProvider } from "@/lib/mock-store";
 
 export const metadata: Metadata = {
-  title: "Provi Beans | Vietnamese specialty coffee, traced lot by lot",
+  title: "Provi Beans | Vietnamese specialty coffee, traced batch by batch",
   description:
-    "Provi Beans sources Vietnamese specialty coffee and distributes it in the Philippines. Hà Nội, Huế and Saigon, slow roasted and accounted for lot by lot.",
+    "Provi Beans sources Vietnamese specialty coffee and distributes it in the Philippines. Hà Nội, Huế and Saigon, slow roasted and accounted for batch by batch.",
 };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (

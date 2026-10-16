@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { MOVEMENT_LABELS, buildLotViews, openAlerts, productSummaries, useMockStore } from "@/lib/mock-store";
+import { MOVEMENT_LABELS, buildBatchViews, openAlerts, productSummaries, useMockStore } from "@/lib/mock-store";
 import { productArtwork } from "@/lib/product-images";
 
 function peso(value: number): string {
@@ -27,7 +27,7 @@ function LotStateBadge({
 export default function DashboardPage() {
   const { state } = useMockStore();
   const summaries = productSummaries(state);
-  const lotViews = buildLotViews(state);
+  const lotViews = buildBatchViews(state);
   const alerts = openAlerts(state);
   const movements = [...state.movements]
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt) || right.id - left.id)
@@ -151,7 +151,7 @@ export default function DashboardPage() {
                   <td className="code">{summary.product.sku}</td>
                   <td>
                     {summary.product.name}
-                    <div className="faint">{summary.lotCount} lots</div>
+                    <div className="faint">{summary.lotCount} batches</div>
                   </td>
                   <td className="num">{summary.onHand}</td>
                   <td className="num">{summary.reserved}</td>
@@ -178,15 +178,15 @@ export default function DashboardPage() {
         <section className="panel">
           <header>
             <h2>FEFO watchlist</h2>
-            <p>Issuable lots ordered by earliest effective date.</p>
+            <p>Issuable batches ordered by earliest effective date.</p>
           </header>
           {fefoWatch.length === 0 ? (
-            <p className="empty">No issuable lots.</p>
+            <p className="empty">No issuable batches.</p>
           ) : (
             <table>
               <thead>
                 <tr>
-                  <th scope="col">Lot</th>
+                  <th scope="col">Batch</th>
                   <th scope="col">Product</th>
                   <th scope="col">Effective date</th>
                   <th scope="col" className="num">Days</th>
@@ -195,8 +195,8 @@ export default function DashboardPage() {
               </thead>
               <tbody>
                 {fefoWatch.map((view) => (
-                  <tr key={view.lot.id}>
-                    <td className="code">{view.lot.code}</td>
+                  <tr key={view.batch.id}>
+                    <td className="code">{view.batch.code}</td>
                     <td>{view.product.sku}</td>
                     <td>{view.effectiveDate}</td>
                     <td className="num">{view.daysToExpiry}</td>
@@ -210,16 +210,16 @@ export default function DashboardPage() {
 
         <section className="panel">
           <header>
-            <h2>Blocked lots</h2>
+            <h2>Blocked batches</h2>
             <p>Excluded from issuance by policy.</p>
           </header>
           {lotViews.filter((view) => view.isExpired || view.isQuarantined).length === 0 ? (
-            <p className="empty">No expired or quarantined lots.</p>
+            <p className="empty">No expired or quarantined batches.</p>
           ) : (
             <table>
               <thead>
                 <tr>
-                  <th scope="col">Lot</th>
+                  <th scope="col">Batch</th>
                   <th scope="col">State</th>
                   <th scope="col" className="num">On hand</th>
                   <th scope="col" className="num">Available</th>
@@ -229,8 +229,8 @@ export default function DashboardPage() {
                 {lotViews
                   .filter((view) => view.isExpired || view.isQuarantined)
                   .map((view) => (
-                    <tr key={view.lot.id}>
-                      <td className="code">{view.lot.code}</td>
+                    <tr key={view.batch.id}>
+                      <td className="code">{view.batch.code}</td>
                       <td>
                         <LotStateBadge
                           isExpired={view.isExpired}

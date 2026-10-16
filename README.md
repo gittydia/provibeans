@@ -43,7 +43,7 @@ not real accounts, and no credentials are sent to a server.
 
 ## Frontend-only data model
 
-The application starts from hardcoded products, suppliers, lots, movements,
+The application starts from hardcoded products, suppliers, batches, movements,
 requests, alerts, and users. Interactive changes are kept in browser-local
 state so the demo can be used without infrastructure. Where persistence is
 needed across refreshes, it uses browser storage.

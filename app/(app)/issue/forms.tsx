@@ -6,13 +6,13 @@ import { useMockStore, type MovementType } from "@/lib/mock-store";
 type Option = { id: number; label: string };
 type LotOption = Option & { available: number; issuable: boolean };
 
-export function IssueForm({ products, lots }: { products: Option[]; lots: LotOption[] }) {
+export function IssueForm({ products, batches }: { products: Option[]; batches: LotOption[] }) {
   const { issueStock } = useMockStore();
   return (
     <ActionForm action={(formData) => issueStock({
       productId: Number(formData.get("productId")),
       quantity: Number(formData.get("quantity")),
-      lotId: formData.get("lotId") ? Number(formData.get("lotId")) : null,
+      batchId: formData.get("batchId") ? Number(formData.get("batchId")) : null,
       reason: String(formData.get("reason") || "") || null,
       reference: String(formData.get("reference") || "") || null,
     })} submitLabel="Issue stock">
@@ -33,17 +33,17 @@ export function IssueForm({ products, lots }: { products: Option[]; lots: LotOpt
           </Field>
 
           <Field
-            label="Lot"
-            name="lotId"
-            hint="Leave empty to let FEFO choose the earliest valid lot."
+            label="Batch"
+            name="batchId"
+            hint="Leave empty to let FEFO choose the earliest valid batch."
           >
             <select>
               <option value="">FEFO — recommended automatically</option>
-              {lots
-                .filter((lot) => lot.issuable && lot.available > 0)
-                .map((lot) => (
-                  <option key={lot.id} value={lot.id}>
-                    {lot.label}
+              {batches
+                .filter((batch) => batch.issuable && batch.available > 0)
+                .map((batch) => (
+                  <option key={batch.id} value={batch.id}>
+                    {batch.label}
                   </option>
                 ))}
             </select>
@@ -72,11 +72,11 @@ const MOVEMENTS = [
   { value: "COUNT", label: "Physical count variance" },
 ];
 
-export function AdjustForm({ lots }: { lots: LotOption[] }) {
+export function AdjustForm({ batches }: { batches: LotOption[] }) {
   const { adjustStock } = useMockStore();
   return (
     <ActionForm action={(formData) => adjustStock({
-      lotId: Number(formData.get("lotId")),
+      batchId: Number(formData.get("batchId")),
       type: String(formData.get("type")) as MovementType,
       quantity: Number(formData.get("quantity")),
       reason: String(formData.get("reason") ?? ""),
@@ -84,11 +84,11 @@ export function AdjustForm({ lots }: { lots: LotOption[] }) {
     })} submitLabel="Record movement">
       {(state) => (
         <div className="form-grid">
-          <Field label="Lot" name="lotId" error={state.fieldErrors?.lotId}>
+          <Field label="Batch" name="batchId" error={state.fieldErrors?.batchId}>
             <select>
-              {lots.map((lot) => (
-                <option key={lot.id} value={lot.id}>
-                  {lot.label}
+              {batches.map((batch) => (
+                <option key={batch.id} value={batch.id}>
+                  {batch.label}
                 </option>
               ))}
             </select>
@@ -129,7 +129,7 @@ export function ReverseForm({ movementId }: { movementId: number }) {
         <div className="form-grid">
           <input type="hidden" name="movementId" value={movementId} />
           <Field label="Reason" name="reason" hint="History is never deleted, only reversed.">
-            <input placeholder="Keyed against the wrong lot" />
+            <input placeholder="Keyed against the wrong batch" />
           </Field>
         </div>
       )}

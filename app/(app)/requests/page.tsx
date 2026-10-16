@@ -24,7 +24,7 @@ export default function RequestsPage() {
     lines: request.lines.map((line) => ({ line, product: state.products.find((product) => product.id === line.productId)! })),
     reservations: request.lines.flatMap((line) => line.allocations.map((allocation, index) => ({
       reservation: { id: index, orderRequestLineId: line.id, quantity: allocation.quantity },
-      lot: state.lots.find((lot) => lot.id === allocation.lotId)!,
+      batch: state.batches.find((batch) => batch.id === allocation.batchId)!,
     }))),
   }));
 
@@ -92,7 +92,7 @@ export default function RequestsPage() {
                     <th scope="col">Coffee</th>
                     <th scope="col" className="num">Requested</th>
                     <th scope="col" className="num">Reserved</th>
-                    <th scope="col">Lots held</th>
+                    <th scope="col">Batches held</th>
                     <th scope="col">Line</th>
                     <th scope="col">Note</th>
                   </tr>
@@ -116,7 +116,7 @@ export default function RequestsPage() {
                         <td className="code">
                           {entry!.reservations
                             .filter((reservation) => reservation.reservation.orderRequestLineId === line.id)
-                            .map((reservation) => `${reservation.lot.code} ×${reservation.reservation.quantity}`)
+                            .map((reservation) => `${reservation.batch.code} ×${reservation.reservation.quantity}`)
                             .join(", ") || "—"}
                         </td>
                         <td>

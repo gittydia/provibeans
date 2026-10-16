@@ -29,7 +29,7 @@ public site.
 
 ### Surfaces audited
 
-`/dashboard` · `/lots` · `/issue` · `/catalog` · `/reports` · `/reports/periods` · `/requests` ·
+`/dashboard` · `/batches` · `/issue` · `/catalog` · `/reports` · `/reports/periods` · `/requests` ·
 `/login` · the app shell (sidebar, mobile bar, notification bell) — 7 screens × 7 viewports
 (320 / 375 / 425 / 768 / 1024 / 1440 / 1920).
 
@@ -43,13 +43,13 @@ public site.
 | 4 | **HEIGHT INCONSISTENCY** | Status badges were `vertical-align: top` while the numbers beside them inherited the same top alignment in a row whose height came from a two-line cell. | badge sits **7.5px** off its row's vertical centre, in a 53px row |
 | 5 | **DUPLICATED CSS** | `.panel` declared `overflow: hidden` at line 219 and `overflow-x: auto` at line 773. The later rule silently overrode the earlier `overflow-y`, leaving the panel a horizontal-only scroller by accident. | Two conflicting rules 550 lines apart |
 | 6 | **DUPLICATED CSS** | The scroll-shadow hint was painted on `.panel table`, but **`background-attachment` tracks the element's own scrollport and the table is not the scroller** — `.panel` is. The hint therefore never moved and never indicated scroll. | `background-attachment` resolved against a non-scrolling element |
-| 7 | **MISALIGNED** | **Form controls in one grid row had different heights and different baselines.** `.field` is `display: grid` and a grid item, so it stretches to the tallest field in the row; its own auto rows then absorbed the slack. A field with a hint has 3 rows to share it, a bare one has 2. | In "Receive a lot": controls **38 / 49 / 38 / 49 / 40 / 50px** tall, starting at **219 / 231 / 219 / 230 / 219 / 229** |
-| 8 | **OVERFLOW** | A `<select>` in a narrow column ellipsizes its own longest option. Not reported by `scrollWidth`, so invisible to ordinary overflow tooling. | Lot select needs **256–272px**, has **167–212px** |
+| 7 | **MISALIGNED** | **Form controls in one grid row had different heights and different baselines.** `.field` is `display: grid` and a grid item, so it stretches to the tallest field in the row; its own auto rows then absorbed the slack. A field with a hint has 3 rows to share it, a bare one has 2. | In "Receive a batch": controls **38 / 49 / 38 / 49 / 40 / 50px** tall, starting at **219 / 231 / 219 / 230 / 219 / 229** |
+| 8 | **OVERFLOW** | A `<select>` in a narrow column ellipsizes its own longest option. Not reported by `scrollWidth`, so invisible to ordinary overflow tooling. | Batch select needs **256–272px**, has **167–212px** |
 | 9 | **RESPONSIVE ISSUE** | Severity badges stretch to the full panel width when `.alert-row` collapses to one column below 860px — a badge rendered as a bar. | Confirmed in before/after screenshots at 375px |
 | 10 | **WIDTH CONSTRAINT ISSUE** | `.alert-row`'s fixed 96px badge column could not hold the widest severity label, so a long label pushed the message sideways. | 96px vs a 112px requirement |
 | 11 | **HEIGHT INCONSISTENCY** | `/requests` stat cards had no `<small>` caption while `/dashboard` cards did, so the same card type had two internal rhythms. | Markup asymmetry |
 | 12 | **ACCEPTABLE / NO CHANGE REQUIRED** | `body { overflow-x: clip }` is a global mask, which the ticket warns against. | Kept — see §8 |
-| 13 | **ACCEPTABLE / NO CHANGE REQUIRED** | The dashboard's FEFO watchlist (5 columns) and Blocked lots (4 columns) sit side by side and cannot line up column-for-column. | Different schemas. Forcing alignment would mean inventing a column |
+| 13 | **ACCEPTABLE / NO CHANGE REQUIRED** | The dashboard's FEFO watchlist (5 columns) and Blocked batches (4 columns) sit side by side and cannot line up column-for-column. | Different schemas. Forcing alignment would mean inventing a column |
 | 14 | **ACCEPTABLE / NO CHANGE REQUIRED** | Native control heights differ by 2–3px (`select` 37px, text `input` 38px, date `input` 40px). | Intrinsic metrics; normalising needs a fixed height that breaks at large text sizes |
 | 15 | **ACCEPTABLE / NO CHANGE REQUIRED** | Form grids pack to 6 columns at 1920px. | Dense but every control is legible and aligned; capping it is a design decision, not a defect |
 
@@ -155,7 +155,7 @@ grid track, so an ultrawide display gets balanced gutters instead of 1848px-wide
   other column, and the cell's vertical padding dropped to 0 — the image centres itself with
   `vertical-align: middle` instead, which removed 12px of dead height from every product row.
 - Empty states with the correct `colSpan` added to the five tables that had none: `/dashboard`
-  Stock by product (7), `/lots` All lots (8), `/catalog` Products (9) / Suppliers (5) / Supplier
+  Stock by product (7), `/batches` All batches (8), `/catalog` Products (9) / Suppliers (5) / Supplier
   deliveries (4), `/requests` lines (6).
 
 ### 3.4 Panels — one overflow strategy
@@ -181,7 +181,7 @@ the shadow once you reach either end.
 ```
 
 One declaration. A field still stretches to its row so the row is uniform, but its label, control and
-hint keep their natural size and top edge. Measured effect on "Receive a lot" at 1920px:
+hint keep their natural size and top edge. Measured effect on "Receive a batch" at 1920px:
 
 | | before | after |
 |---|---|---|
@@ -214,9 +214,9 @@ checkable in one file instead of five:
 
 | Class | Replaces | Used by |
 |---|---|---|
-| `.row-note` | `marginTop: 6` | `/issue`, `/lots` |
-| `.row-form` | `marginTop: 10` | `/issue`, `/lots` |
-| `.row-label` | `marginBottom: 8` | `/lots` |
+| `.row-note` | `marginTop: 6` | `/issue`, `/batches` |
+| `.row-form` | `marginTop: 10` | `/issue`, `/batches` |
+| `.row-label` | `marginBottom: 8` | `/batches` |
 | `.request-note` | `padding: 12px 16px; margin: 0` | `/requests` |
 
 **Left alone deliberately:** the three `style={{ color: "var(--app-crit)" }}` in `requests/row.tsx` and
@@ -264,7 +264,7 @@ repair the *causes* rather than to rely on the global clip.
 |---|---|
 | `app/app.css` | +147 / −36. Layout tokens, content limiter, shared cell box, declared vertical alignment, `overflow-wrap`, `.panel` overflow consolidation, scroll-hint relocation, `.field` alignment, `.thumb` gutter, `.alert-row` column, `.side` scroll, `.split`/`.eyebrow` spacing, 4 shared spacing classes |
 | `app/(app)/dashboard/page.tsx` | Empty-state row (`colSpan 7`) |
-| `app/(app)/lots/page.tsx` | Empty-state row (`colSpan 8`); 3 inline styles → classes |
+| `app/(app)/batches/page.tsx` | Empty-state row (`colSpan 8`); 3 inline styles → classes |
 | `app/(app)/catalog/page.tsx` | Empty-state rows (`colSpan` 9 / 5 / 4) |
 | `app/(app)/requests/page.tsx` | Empty-state row (`colSpan 6`); note padding → class; 3 stat captions |
 | `app/(app)/issue/page.tsx` | 2 inline styles → classes |
@@ -311,7 +311,7 @@ Every check was confirmed non-vacuous. The new form-alignment check was proven b
 
 ```
 [FAIL] form controls in the same row share a top edge
-       /lots@768px "Receive a lot" controls in one row start at 259.83, 259.98, 270.83
+       /batches@768px "Receive a batch" controls in one row start at 259.83, 259.98, 270.83
 ```
 
 ### Full verification
@@ -347,7 +347,7 @@ Measured render cost:
 |---|---|
 | `/dashboard` | 4.7s |
 | `/issue` | **5.4s** |
-| `/lots` | 3.9s |
+| `/batches` | 3.9s |
 | `/catalog` | 1.3s |
 | `/reports` · `/reports/periods` · `/requests` | 0.4–0.7s |
 
@@ -376,7 +376,7 @@ opening *Issue & movements* waits five seconds for a form.
 ### Visual verification
 
 14 screenshots in `docs/layout/` (`before-*` / `after-*` × dashboard 1440, dashboard 375,
-catalog 1440, lots 1440, reports 1024, requests 768, receive-lot form, issue-stock form).
+catalog 1440, batches 1440, reports 1024, requests 768, receive-batch form, issue-stock form).
 
 **One false alarm, worth recording.** A 2× zoomed screenshot appeared to show vertical seams breaking
 the table row separators. A 1:1 native crop showed continuous lines, and geometry confirmed uniform
@@ -390,7 +390,7 @@ was changed for it.
 
 Accepted deliberately, with reasons.
 
-1. **`<select>` options ellipsize in narrow columns.** The Lot select needs 256–272px and has 167–212px.
+1. **`<select>` options ellipsize in narrow columns.** The Batch select needs 256–272px and has 167–212px.
    A native select always ellipsizes a long option in a narrow box; the full text is visible when the
    dropdown opens. Fixing it would mean either rewriting copy ("FEFO — recommended automatically") or
    making one grid column wider than its neighbours — the second would reintroduce exactly the ragged

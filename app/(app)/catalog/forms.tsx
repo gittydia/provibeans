@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { ActionForm, Field } from "../ui/action-form";
-import { useMockStore } from "@/lib/mock-store";
+import { useMockStore, type FormState } from "@/lib/mock-store";
 
 type Option = { id: number; label: string };
 
@@ -74,6 +75,27 @@ export function ProductForm() {
         </div>
       )}
     </ActionForm>
+  );
+}
+
+export function ProductStateControl({ productId, sku, isActive }: { productId: number; sku: string; isActive: boolean }) {
+  const { setProductActive } = useMockStore();
+  const [state, setState] = useState<FormState>({});
+
+  return (
+    <div className="row-form">
+      {state.message ? (
+        <span className="muted" role="status">{state.message}</span>
+      ) : null}
+      <button
+        type="button"
+        className="btn btn-quiet"
+        aria-label={`${isActive ? "Deactivate" : "Reactivate"} ${sku}`}
+        onClick={() => setState(setProductActive(productId, !isActive))}
+      >
+        {isActive ? "Deactivate" : "Reactivate"}
+      </button>
+    </div>
   );
 }
 

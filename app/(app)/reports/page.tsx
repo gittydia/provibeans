@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MOVEMENT_LABELS, buildLotViews, canViewReports, downloadCsv, useMockStore, type MovementType } from "@/lib/mock-store";
+import { MOVEMENT_LABELS, buildBatchViews, canViewReports, downloadCsv, useMockStore, type MovementType } from "@/lib/mock-store";
 
 const MOVEMENT_FILTERS: { value: string; label: string }[] = [
   { value: "", label: "All movement types" },
@@ -33,11 +33,11 @@ export default function ReportsPage() {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id)
     .slice(0, 200)
     .flatMap((movement) => {
-      const lot = state.lots.find((entry) => entry.id === movement.lotId);
+      const batch = state.batches.find((entry) => entry.id === movement.batchId);
       const product = state.products.find((entry) => entry.id === movement.productId);
-      return lot && product ? [{ movement, lotCode: lot.code, productSku: product.sku }] : [];
+      return batch && product ? [{ movement, batchCode: batch.code, productSku: product.sku }] : [];
     });
-  const lotViews = buildLotViews(state);
+  const lotViews = buildBatchViews(state);
   const activity = [...state.audit].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 40);
 
   return (
@@ -57,13 +57,13 @@ export default function ReportsPage() {
 
       <section className="panel">
         <header>
-          <h2>Stock by lot</h2>
+          <h2>Stock by batch</h2>
           <p>Derived balances with the date that drives FEFO.</p>
         </header>
         <table>
           <thead>
             <tr>
-              <th scope="col">Lot</th>
+              <th scope="col">Batch</th>
               <th scope="col">SKU</th>
               <th scope="col">Received</th>
               <th scope="col">Roasted</th>
@@ -76,14 +76,14 @@ export default function ReportsPage() {
           </thead>
           <tbody>
             {lotViews.map((view) => (
-              <tr key={view.lot.id}>
-                <td className="code">{view.lot.code}</td>
+              <tr key={view.batch.id}>
+                <td className="code">{view.batch.code}</td>
                 <td>{view.product.sku}</td>
-                <td className="muted">{view.lot.receivedAt.slice(0, 10)}</td>
-                <td className="muted">{view.lot.roastDate ?? "—"}</td>
-                <td className="muted">{view.lot.packDate ?? "—"}</td>
-                <td className="muted">{view.lot.bestBeforeDate ?? "—"}</td>
-                <td className="muted">{view.lot.expiryDate ?? "—"}</td>
+                <td className="muted">{view.batch.receivedAt.slice(0, 10)}</td>
+                <td className="muted">{view.batch.roastDate ?? "—"}</td>
+                <td className="muted">{view.batch.packDate ?? "—"}</td>
+                <td className="muted">{view.batch.bestBeforeDate ?? "—"}</td>
+                <td className="muted">{view.batch.expiryDate ?? "—"}</td>
                 <td className="num">{view.onHand}</td>
                 <td className="num">{view.available}</td>
               </tr>
@@ -101,8 +101,8 @@ export default function ReportsPage() {
               <>
                 {" · "}
                 <button type="button" className="notif-link" onClick={() => downloadCsv("provi-beans-movements.csv", [
-                  ["When", "Type", "Lot", "SKU", "Quantity", "Reason", "Reference", "Reverses"],
-                  ...movementRows.map(({ movement, lotCode, productSku }) => [movement.createdAt, MOVEMENT_LABELS[movement.type], lotCode, productSku, movement.quantity, movement.reason, movement.reference, movement.reversesId]),
+                  ["When", "Type", "Batch", "SKU", "Quantity", "Reason", "Reference", "Reverses"],
+                  ...movementRows.map(({ movement, batchCode, productSku }) => [movement.createdAt, MOVEMENT_LABELS[movement.type], batchCode, productSku, movement.quantity, movement.reason, movement.reference, movement.reversesId]),
                 ])}>
                   Export CSV
                 </button>
@@ -150,7 +150,7 @@ export default function ReportsPage() {
             <tr>
               <th scope="col">When</th>
               <th scope="col">Type</th>
-              <th scope="col">Lot</th>
+              <th scope="col">Batch</th>
               <th scope="col">SKU</th>
               <th scope="col" className="num">Qty</th>
               <th scope="col">Reason</th>
@@ -166,11 +166,11 @@ export default function ReportsPage() {
                 </td>
               </tr>
             ) : (
-              movementRows.map(({ movement, lotCode, productSku }) => (
+              movementRows.map(({ movement, batchCode, productSku }) => (
                 <tr key={movement.id}>
                   <td className="faint">{movement.createdAt.slice(0, 16).replace("T", " ")}</td>
                   <td>{MOVEMENT_LABELS[movement.type]}</td>
-                  <td className="code">{lotCode}</td>
+                  <td className="code">{batchCode}</td>
                   <td>{productSku}</td>
                   <td className="num">{movement.quantity}</td>
                   <td className="muted">{movement.reason ?? "—"}</td>

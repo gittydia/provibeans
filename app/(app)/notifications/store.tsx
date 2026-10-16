@@ -41,9 +41,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       const item = pushNotification({
         type: "NEAR_EXPIRY",
         severity: "WARNING",
-        title: "Lot nearing expiry",
-        message: "Lot HN-2602-B reaches its effective date soon. Issue it first.",
-        entityType: "lot",
+        title: "Batch nearing expiry",
+        message: "Batch HN-2602-B reaches its effective date soon. Issue it first.",
+        entityType: "batch",
         entityId: "demo-inbound",
       });
       setToasts([{ id: item.id, title: item.title, message: item.message, severity: item.severity }]);

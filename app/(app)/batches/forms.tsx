@@ -25,10 +25,10 @@ export function CreateLotForm({
       bestBeforeDate: String(formData.get("bestBeforeDate") || "") || null,
       expiryDate: String(formData.get("expiryDate") || "") || null,
       notes: String(formData.get("notes") || "") || null,
-    })} submitLabel="Receive lot">
+    })} submitLabel="Receive batch">
       {(state) => (
         <div className="form-grid">
-          <Field label="Lot code" name="code" error={state.fieldErrors?.code} hint="Unique across all stock.">
+          <Field label="Batch code" name="code" error={state.fieldErrors?.code} hint="Unique across all stock.">
             <input placeholder="HN-2603-A" />
           </Field>
 
@@ -42,7 +42,7 @@ export function CreateLotForm({
             </select>
           </Field>
 
-          <Field label="Delivery" name="deliveryId" hint="Optional. Links this lot to a supplier delivery.">
+          <Field label="Delivery" name="deliveryId" hint="Optional. Links this batch to a supplier delivery.">
             <select>
               <option value="">Not linked</option>
               {deliveries.map((delivery) => (
@@ -78,7 +78,7 @@ export function CreateLotForm({
           </Field>
 
           <Field label="Notes" name="notes">
-            <textarea placeholder="Anything worth remembering about this lot." />
+            <textarea placeholder="Anything worth remembering about this batch." />
           </Field>
         </div>
       )}
@@ -86,13 +86,13 @@ export function CreateLotForm({
   );
 }
 
-export function QuarantineForm({ lotId, reason }: { lotId: number; reason?: string | null }) {
+export function QuarantineForm({ batchId, reason }: { batchId: number; reason?: string | null }) {
   const { quarantineLot } = useMockStore();
   return (
-    <ActionForm action={(formData) => quarantineLot(lotId, String(formData.get("reason") ?? ""))} submitLabel="Quarantine">
+    <ActionForm action={(formData) => quarantineLot(batchId, String(formData.get("reason") ?? ""))} submitLabel="Quarantine">
       {() => (
         <div className="form-grid">
-          <input type="hidden" name="lotId" value={lotId} />
+          <input type="hidden" name="batchId" value={batchId} />
           <Field label="Reason" name="reason" hint={reason ? `Currently: ${reason}` : "Required."}>
             <input placeholder="Transit damage" />
           </Field>
@@ -102,13 +102,13 @@ export function QuarantineForm({ lotId, reason }: { lotId: number; reason?: stri
   );
 }
 
-export function ReleaseForm({ lotId }: { lotId: number }) {
+export function ReleaseForm({ batchId }: { batchId: number }) {
   const { releaseLot } = useMockStore();
   return (
-    <ActionForm action={() => releaseLot(lotId)} submitLabel="Release to available">
+    <ActionForm action={() => releaseLot(batchId)} submitLabel="Release to available">
       {() => (
         <div className="form-grid">
-          <input type="hidden" name="lotId" value={lotId} />
+          <input type="hidden" name="batchId" value={batchId} />
         </div>
       )}
     </ActionForm>

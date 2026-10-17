@@ -73,8 +73,8 @@ app runs on. A Neon branch is an isolated copy, which makes that separation free
 Go to **`/login`**. The staff area is not public — any anonymous request is redirected
 back to this page.
 
-All three demo accounts use the password **`ProviBeans2026`**. The login page lists them
-and pre-fills the administrator, so you can usually just press Sign in.
+All three demo accounts use the password **`ProviBeans2026`**. The login page pre-fills the
+administrator, so you only need to enter the password and press Sign in.
 
 | Email | Role | What they can do |
 |---|---|---|
@@ -84,12 +84,14 @@ and pre-fills the administrator, so you can usually just press Sign in.
 
 ### What the roles actually control
 
-Two checks decide everything, and both run on the **server** — hiding a button is never
-the control:
+Three checks decide everything, and all three run in the browser against the mock state —
+hiding a button is never the control:
 
 - **`canManageMasterData`** → administrator and owner only. Creating products, suppliers
   and deliveries.
 - **`canViewReports`** → administrator and owner only. The reports screen and CSV export.
+- **`canManageAccounts`** → administrator and owner only. The Accounts screen, adding
+  accounts and deactivating them.
 
 Inventory staff see those screens read-only or not at all.
 
@@ -115,9 +117,9 @@ and in the **Products** table under Products & suppliers.
 
 ## 4. The inventory system, screen by screen
 
-Five screens, in the left navigation. The **Dashboard** is a single page; the other four are
-section pages with **tabs** — the tab strip sits under the page heading, and each tab is its
-own route with its own URL.
+Six screens, in the left navigation. **Dashboard** and **Accounts** (administrator and owner
+only) are single pages; the other four are section pages with **tabs** — the tab strip sits
+under the page heading, and each tab is its own route with its own URL.
 
 ### Dashboard — "Stock control"
 
@@ -247,6 +249,20 @@ Weeks are **ISO weeks**, running Monday to Sunday.
 > removes it from *available* but leaves it physically present, so counting a reservation
 > as stock leaving the building would overstate the movement.
 
+### Accounts
+
+**Administrator and owner only.** `/accounts` — everyone who can sign in, and the form to add
+more.
+
+- **The list** gives each account's name, email, role, and whether it is **Active** or
+  **Inactive**. Your own row is marked **You** and offers no Deactivate button — you cannot
+  deactivate the account you are signed in with.
+- **Create an account** — name, email, role, and an optional password. Leave the password
+  blank and the account signs in with the demo password **`ProviBeans2026`**; set one and it
+  signs in with that instead (at least 6 characters). New accounts can sign in immediately.
+- **Deactivate** blocks sign-in and keeps the account, so it can be switched back on with
+  **Reactivate** at any time.
+
 ---
 
 ## 5. Everyday tasks
@@ -295,6 +311,16 @@ Alert types: `LOW_STOCK`, `REORDER`, `NEAR_EXPIRY`, `EXPIRED`, `QUARANTINE`,
 
 Never edit. Find the movement, **Reverse** it, and give the reason. The original stays in
 the ledger and the audit log keeps both entries.
+
+### Create a sign-in account
+
+1. **Accounts** in the left navigation (administrator and owner only)
+2. Enter the name and email, and choose a role
+3. Optionally set a password — leave it blank to use the demo password `ProviBeans2026`
+4. **Create account**
+
+The account can sign in immediately. To block someone, use **Deactivate** on the same screen;
+**Reactivate** brings them back. Deactivating never deletes history.
 
 ---
 
@@ -404,7 +430,7 @@ Both were supplied and expiry is earlier. Either correct the entry or leave expi
 
 | Path | Contents |
 |---|---|
-| `app/(app)/` | Authenticated area — the five screens and their tabs |
+| `app/(app)/` | Authenticated area — the six screens and their tabs |
 | `lib/inventory/ledger.ts` | Balance derivation and FEFO |
 | `lib/inventory/record.ts` | Every validated write |
 | `lib/inventory/alerts.ts` | Alert derivation |

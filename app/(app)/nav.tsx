@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, type ReactNode } from "react";
-import { canViewReports, useMockStore } from "@/lib/mock-store";
+import { canManageAccounts, canViewReports, useMockStore } from "@/lib/mock-store";
 
 const links = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
@@ -11,6 +11,7 @@ const links = [
   { href: "/issue", label: "Issue & movements", icon: "issue" },
   { href: "/catalog", label: "Products & suppliers", icon: "catalog" },
   { href: "/reports", label: "Reports & activity", icon: "reports" },
+  { href: "/accounts", label: "Accounts", icon: "accounts" },
 ] as const;
 
 const NavCollapsedContext = createContext(false);
@@ -38,13 +39,18 @@ function NavItemIcon({ icon }: { icon: (typeof links)[number]["icon"] }) {
       {icon === "issue" ? <><path d="M4 12h13" /><path d="m13 8 4 4-4 4" /><path d="M20 5v14" /></> : null}
       {icon === "catalog" ? <><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v17H6.5A2.5 2.5 0 0 0 4 22V5.5Z" /><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v17h4.5A2.5 2.5 0 0 1 20 22V5.5Z" /></> : null}
       {icon === "reports" ? <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></> : null}
+      {icon === "accounts" ? <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></> : null}
     </svg>
   );
 }
 
 function useVisibleLinks() {
   const { user } = useMockStore();
-  return links.filter((link) => link.href !== "/reports" || (user && canViewReports(user.role)));
+  return links.filter((link) => {
+    if (link.href === "/reports") return Boolean(user && canViewReports(user.role));
+    if (link.href === "/accounts") return Boolean(user && canManageAccounts(user.role));
+    return true;
+  });
 }
 
 export function AppNavStateProvider({ collapsed, children }: { collapsed: boolean; children: ReactNode }) {

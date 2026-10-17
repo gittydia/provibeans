@@ -1332,10 +1332,12 @@ table tfoot td {
   background: var(--app-surface);
   border-radius: 12px;
   box-shadow: 0 24px 60px var(--app-shadow);
-}
-
-.signin-card .demo code {
-  overflow-wrap: anywhere;
+  /* `body`'s espresso text colour is not theme-aware and the card's h1 and
+     field labels carry no colour of their own, so on the dark-mode card they
+     inherited dark espresso ink onto a dark surface and vanished. Pin the
+     card's text to the themed ink; in light mode --app-ink is the same
+     espresso it replaces, so nothing moves there. */
+  color: var(--app-ink);
 }
 
 .signin-card h1 {
@@ -1357,22 +1359,6 @@ table tfoot td {
 
 .signin-card .field {
   margin-bottom: 12px;
-}
-
-.demo {
-  margin-top: 18px;
-  padding: 12px;
-  background: var(--app-sunk);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
-  line-height: var(--leading-relaxed);
-  color: var(--app-ink-soft);
-}
-
-.demo code {
-  font-family: var(--mono);
-  font-size: var(--text-xs);
-  color: var(--app-ink);
 }
 
 @media (max-width: 860px) {

@@ -34,6 +34,12 @@ export type User = {
   name: string;
   role: Role;
   isActive: boolean;
+  /**
+   * Demo-only: the password chosen when the account was created on /accounts.
+   * Accounts without one fall back to DEMO_PASSWORD so the seeded demo
+   * sign-ins keep working. Browser-local, never a real credential.
+   */
+  password?: string;
 };
 
 export type Product = {
@@ -315,6 +321,14 @@ export function canViewReports(role: Role): boolean {
   return role === "ADMIN" || role === "OWNER";
 }
 
+export function canManageAccounts(role: Role): boolean {
+  return role === "ADMIN" || role === "OWNER";
+}
+
+function isRole(value: string): value is Role {
+  return value === "ADMIN" || value === "INVENTORY_STAFF" || value === "OWNER";
+}
+
 export function balancesForBatch(state: MockState, batchId: number): { onHand: number; reserved: number } {
   return state.movements.filter((movement) => movement.batchId === batchId).reduce(
     (balance, movement) => {
@@ -411,6 +425,8 @@ type Store = {
   reverseMovement: (movementId: number, reason: string) => FormState;
   createProduct: (product: Omit<Product, "id" | "isActive">) => FormState;
   setProductActive: (productId: number, active: boolean) => FormState;
+  createUser: (input: { name: string; email: string; role: string; password: string | null }) => FormState;
+  setUserActive: (userId: number, active: boolean) => FormState;
   createSupplier: (supplier: Omit<Supplier, "id">) => FormState;
   createDelivery: (delivery: Omit<Delivery, "id">) => FormState;
   markNotificationRead: (id: number) => void;
@@ -464,7 +480,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     if (!password) fieldErrors.password = "Enter your password.";
     if (Object.keys(fieldErrors).length) return { fieldErrors };
     const found = stateRef.current.users.find((entry) => entry.email === normal && entry.isActive);
-    if (!found || password !== DEMO_PASSWORD) return { error: "That email and password combination was not recognised." };
+    if (!found || password !== (found.password ?? DEMO_PASSWORD)) return { error: "That email and password combination was not recognised." };
     commit((draft) => { draft.currentUserId = found.id; });
     return { ok: true };
   }, [commit]);
@@ -601,6 +617,48 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       : { ok: true, message: `${product.sku} deactivated. Its batches and history are kept.` };
   }, [audit, commit]);
 
+  const createUser = useCallback<Store["createUser"]>((input) => {
+    if (!isRole(input.role)) return { error: "Choose a role." };
+    const role: Role = input.role;
+    const name = input.name.trim();
+    const email = input.email.trim().toLowerCase();
+    const fieldErrors: Record<string, string> = {};
+    if (!name) fieldErrors.name = "A name is required.";
+    if (!email) fieldErrors.email = "An email address is required.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fieldErrors.email = "Enter a valid email address.";
+    else if (stateRef.current.users.some((entry) => entry.email === email)) fieldErrors.email = "Already in use.";
+    if (input.password !== null && input.password.length < 6) fieldErrors.password = "Use at least 6 characters.";
+    if (Object.keys(fieldErrors).length) return { error: "Check the highlighted fields.", fieldErrors };
+    commit((draft) => {
+      draft.users.push({ id: nextId(draft.users), name, email, role, isActive: true, ...(input.password !== null ? { password: input.password } : {}) });
+      audit(draft, "CREATE", "user", email, null, { role });
+    });
+    return input.password !== null
+      ? { ok: true, message: `${name} added. They sign in with the password you set.` }
+      : { ok: true, message: `${name} added. They sign in with the demo password ${DEMO_PASSWORD}.` };
+  }, [audit, commit]);
+
+  /**
+   * Retires an account instead of deleting it, mirroring setProductActive:
+   * login() only matches active rows, so deactivating blocks sign-in, and the
+   * account can be reactivated later. Deleting would lose that reversibility
+   * along with the account's audit trail.
+   */
+  const setUserActive = useCallback<Store["setUserActive"]>((userId, active) => {
+    const target = stateRef.current.users.find((entry) => entry.id === userId);
+    if (!target) return { error: "Account not found." };
+    if (!active && stateRef.current.currentUserId === userId) return { error: "You cannot deactivate the account you are signed in with." };
+    if (target.isActive === active) return { error: `${target.email} is already ${active ? "active" : "inactive"}.` };
+    commit((draft) => {
+      const row = draft.users.find((entry) => entry.id === userId)!;
+      row.isActive = active;
+      audit(draft, active ? "ACTIVATE" : "DEACTIVATE", "user", row.email, { isActive: target.isActive }, { isActive: active });
+    });
+    return active
+      ? { ok: true, message: `${target.name} can sign in again.` }
+      : { ok: true, message: `${target.name} deactivated. They can no longer sign in.` };
+  }, [audit, commit]);
+
   const createSupplier = useCallback<Store["createSupplier"]>((supplier) => {
     if (!supplier.name.trim()) return { error: "A supplier name is required.", fieldErrors: { name: "Required." } };
     if (stateRef.current.suppliers.some((entry) => entry.name.toLowerCase() === supplier.name.trim().toLowerCase())) return { error: `${supplier.name} is already recorded.`, fieldErrors: { name: "Already recorded." } };
@@ -644,12 +702,14 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     reverseMovement,
     createProduct,
     setProductActive,
+    createUser,
+    setUserActive,
     createSupplier,
     createDelivery,
     markNotificationRead,
     markAllNotificationsRead,
     pushNotification,
-  }), [state, hydrated, login, logout, reset, createLot, quarantineLot, releaseLot, issueStock, adjustStock, reverseMovement, createProduct, setProductActive, createSupplier, createDelivery, markNotificationRead, markAllNotificationsRead, pushNotification]);
+  }), [state, hydrated, login, logout, reset, createLot, quarantineLot, releaseLot, issueStock, adjustStock, reverseMovement, createProduct, setProductActive, createUser, setUserActive, createSupplier, createDelivery, markNotificationRead, markAllNotificationsRead, pushNotification]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

@@ -61,6 +61,7 @@ const ROUTES = [
   "/reports/movements",
   "/reports/activity",
   "/reports/periods",
+  "/accounts",
 ];
 
 /* Columns that deliberately opt out of the shared cell gutter: the thumbnail is

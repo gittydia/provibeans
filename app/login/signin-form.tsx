@@ -4,13 +4,7 @@ import { useState, type SyntheticEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useMockStore, type FormState } from "@/lib/mock-store";
 
-export type DemoAccount = {
-  email: string;
-  password: string;
-  label: string;
-};
-
-export function SignInForm({ demoAccounts }: { demoAccounts: readonly DemoAccount[] }) {
+export function SignInForm() {
   const { login } = useMockStore();
   const router = useRouter();
   const [state, setState] = useState<FormState>({});
@@ -75,24 +69,6 @@ export function SignInForm({ demoAccounts }: { demoAccounts: readonly DemoAccoun
 
       <div className="actions">
         <button type="submit" className="btn">Sign in</button>
-      </div>
-
-      <div className="demo">
-        <strong>Demo accounts</strong> — password <code>ProviBeans2026</code>
-        {demoAccounts.map((account) => (
-          <button
-            key={account.email}
-            type="button"
-            className="demo-account"
-            onClick={() => {
-              setEmail(account.email);
-              setPassword(account.password);
-              setState({});
-            }}
-          >
-            <code>{account.email}</code> {account.label}
-          </button>
-        ))}
       </div>
     </form>
   );

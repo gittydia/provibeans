@@ -41,6 +41,10 @@ All three accounts use the password **`ProviBeans2026`**.
 Authentication is simulated in the browser. These credentials are demo data,
 not real accounts, and no credentials are sent to a server.
 
+Administrators and owners can create more accounts from the **Accounts** screen
+(`/accounts`). A new account can have its own password, or use `ProviBeans2026`
+when left blank.
+
 ## Frontend-only data model
 
 The application starts from hardcoded products, suppliers, batches, movements,
@@ -126,7 +130,7 @@ browser layout suite.
 
 `verify:layout` measures rendered geometry rather than comparing screenshots.
 It checks table header alignment, shared cell gutters, row alignment, card
-heights, content width, and overflow containment across thirteen screens and seven
+heights, content width, and overflow containment across fourteen screens and seven
 viewport sizes. It signs in through the demo form and does not access or mutate
 any external data source.
 

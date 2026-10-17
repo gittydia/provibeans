@@ -88,6 +88,23 @@ for (const relativePath of obsoleteVerificationFiles) {
 }
 check("database-backed verification scripts are absent", presentVerificationFiles.length === 0, presentVerificationFiles.join(", "));
 
+/* "Customer ordering" is Future Work in `project-plan.md` (Significance of the
+   Study), and Scope and Limitations rules out end-to-end e-commerce. Chapter I
+   covers holding stock through RESERVE / RELEASE / CANCEL movements, which
+   `/issue` drives directly, so the ordering surface is deleted rather than
+   parked behind a flag: a disabled feature is still a feature the plan has not
+   approved, and a future-work screen in the present work misreads the scope. */
+const outOfScopePaths = [
+  "app/cart",
+  "app/(app)/requests",
+  "lib/features.ts",
+];
+const presentOutOfScopePaths = [];
+for (const relativePath of outOfScopePaths) {
+  if (await exists(relativePath)) presentOutOfScopePaths.push(relativePath);
+}
+check("out-of-scope customer ordering is absent", presentOutOfScopePaths.length === 0, presentOutOfScopePaths.join(", "));
+
 const applicationFiles = [...(await sourceFiles("app")), ...(await sourceFiles("lib"))];
 const forbiddenSource = /(?:@neondatabase\/serverless|drizzle-orm|@\/lib\/db|DATABASE_URL)/;
 const databaseSourceMatches = [];

@@ -44,9 +44,9 @@ not real accounts, and no credentials are sent to a server.
 ## Frontend-only data model
 
 The application starts from hardcoded products, suppliers, batches, movements,
-requests, alerts, and users. Interactive changes are kept in browser-local
-state so the demo can be used without infrastructure. Where persistence is
-needed across refreshes, it uses browser storage.
+alerts, and users. Interactive changes are kept in browser-local state so the demo
+can be used without infrastructure. Where persistence is needed across refreshes,
+it uses browser storage.
 
 This is intentionally not a production persistence or security model:
 
@@ -83,8 +83,9 @@ npm run verify
 ```
 
 `verify:frontend` checks that database packages, commands, configuration,
-migrations, imports, and connection variables have not returned, and confirms
-that browser-local persistence exists.
+migrations, imports, and connection variables have not returned, confirms that
+browser-local persistence exists, and fails if out-of-scope customer ordering
+(`app/cart`, `app/(app)/requests`, `lib/features.ts`) reappears.
 
 The layout suite drives an installed Edge or Chrome browser against a running
 application:

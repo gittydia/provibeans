@@ -26,7 +26,6 @@ export type MovementType =
   | "ADJUSTMENT"
   | "COUNT";
 export type BatchStatus = "ACTIVE" | "QUARANTINE" | "DEPLETED" | "DISPOSED";
-export type RequestStatus = "NEW" | "CONFIRMED" | "FULFILLED" | "CANCELLED";
 export type NotificationSeverity = "INFO" | "WARNING" | "CRITICAL";
 
 export type User = {
@@ -111,30 +110,6 @@ export type AuditEntry = {
   createdAt: string;
 };
 
-export type OrderLine = {
-  id: number;
-  productId: number;
-  quantityRequested: number;
-  quantityReserved: number;
-  status: "RESERVED" | "PARTIAL" | "SHORT" | "CANCELLED";
-  note: string | null;
-  allocations: { batchId: number; quantity: number }[];
-};
-
-export type OrderRequest = {
-  id: number;
-  reference: string;
-  customerName: string;
-  business: string | null;
-  email: string;
-  phone: string | null;
-  notes: string | null;
-  status: RequestStatus;
-  createdAt: string;
-  updatedAt: string;
-  lines: OrderLine[];
-};
-
 export type NotificationItem = {
   id: number;
   type: string;
@@ -156,10 +131,8 @@ export type MockState = {
   deliveries: Delivery[];
   batches: Batch[];
   movements: Movement[];
-  requests: OrderRequest[];
   audit: AuditEntry[];
   notifications: NotificationItem[];
-  cart: Record<string, number>;
 };
 
 export type FormState = {
@@ -168,7 +141,6 @@ export type FormState = {
   error?: string;
   fieldErrors?: Record<string, string>;
   reference?: string;
-  shortLines?: { sku: string; requested: number; reserved: number; note: string | null }[];
 };
 
 export type BatchView = {
@@ -291,9 +263,6 @@ function seedState(): MockState {
     deliveries,
     batches,
     movements,
-    requests: [
-      { id: 1, reference: "ORD-2026-0007", customerName: "Mara Santos", business: "Kettle and Co", email: "mara@kettle.example", phone: "+63 917 555 0117", notes: "Please confirm the Friday delivery window.", status: "NEW", createdAt: timestampDaysAgo(2), updatedAt: timestampDaysAgo(2), lines: [{ id: 1, productId: 1, quantityRequested: 18, quantityReserved: 18, status: "RESERVED", note: null, allocations: [{ batchId: 2, quantity: 18 }] }] },
-    ],
     audit: [
       { id: 1, actorName: "Jenna Cruz", action: "RECEIVE", entity: "delivery", entityId: "CH-2026-018", before: null, after: JSON.stringify({ batches: 3 }), createdAt: timestampDaysAgo(120) },
       { id: 2, actorName: "Ariel Mendoza", action: "QUARANTINE", entity: "batch", entityId: "HUE-2603-DMG", before: JSON.stringify({ status: "ACTIVE" }), after: JSON.stringify({ status: "QUARANTINE" }), createdAt: timestampDaysAgo(10) },
@@ -301,10 +270,8 @@ function seedState(): MockState {
     notifications: [
       { id: 101, type: "EXPIRED", severity: "CRITICAL", title: "Batch expired", message: "Batch HUE-2510-A has expired and still holds stock. It cannot be issued.", entityType: "batch", entityId: "3", readAt: null, createdAt: timestampDaysAgo(0.01) },
       { id: 102, type: "LOW_STOCK", severity: "CRITICAL", title: "Low stock", message: "PB-SGN-250 is below its low-stock level.", entityType: "product", entityId: "3", readAt: null, createdAt: timestampDaysAgo(0.08) },
-      { id: 103, type: "ORDER_RECEIVED", severity: "INFO", title: "New order request", message: "Request ORD-2026-0007 from Kettle and Co is awaiting confirmation.", entityType: "order_request", entityId: "1", readAt: null, createdAt: timestampDaysAgo(2) },
       { id: 104, type: "QUARANTINE", severity: "WARNING", title: "Batch quarantined", message: "Batch HUE-2603-DMG is quarantined pending review.", entityType: "batch", entityId: "5", readAt: timestampDaysAgo(1), createdAt: timestampDaysAgo(2) },
     ],
-    cart: {},
   };
 }
 
@@ -446,12 +413,9 @@ type Store = {
   setProductActive: (productId: number, active: boolean) => FormState;
   createSupplier: (supplier: Omit<Supplier, "id">) => FormState;
   createDelivery: (delivery: Omit<Delivery, "id">) => FormState;
-  updateRequest: (requestId: number, status: Exclude<RequestStatus, "NEW">) => FormState;
   markNotificationRead: (id: number) => void;
   markAllNotificationsRead: () => void;
   pushNotification: (notification: Omit<NotificationItem, "id" | "readAt" | "createdAt">) => NotificationItem;
-  setCartQuantity: (productId: number, quantity: number) => FormState;
-  checkout: (customer: { customerName: string; business: string | null; email: string; phone: string | null; notes: string | null }) => FormState;
 };
 
 const StoreContext = createContext<Store | null>(null);
@@ -621,8 +585,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
    * product, so removing the row would leave the ledger pointing at nothing and
    * `/reports` printing movements with no SKU. Deactivating keeps that history
    * readable while taking the product out of circulation: it stops appearing in
-   * the receive and issue pickers, and `setCartQuantity` already refuses an
-   * inactive product.
+   * the receive and issue pickers.
    */
   const setProductActive = useCallback<Store["setProductActive"]>((productId, active) => {
     const product = stateRef.current.products.find((entry) => entry.id === productId);
@@ -652,29 +615,6 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     return { ok: true, message: delivery.reference ? `Delivery ${delivery.reference} recorded.` : "Delivery recorded." };
   }, [commit]);
 
-  const updateRequest = useCallback((requestId: number, status: Exclude<RequestStatus, "NEW">): FormState => {
-    const request = stateRef.current.requests.find((entry) => entry.id === requestId);
-    if (!request) return { error: "Order request not found." };
-    if (request.status === "FULFILLED" || request.status === "CANCELLED") return { error: `This request is already ${request.status.toLowerCase()}.` };
-    commit((draft) => {
-      const target = draft.requests.find((entry) => entry.id === requestId)!;
-      if (status === "CANCELLED") {
-        for (const line of target.lines) for (const allocation of line.allocations) addMovement(draft, { batchId: allocation.batchId, productId: line.productId, type: "CANCEL", quantity: allocation.quantity, reason: `Cancelled ${target.reference}`, reference: target.reference });
-        target.lines.forEach((line) => { line.status = "CANCELLED"; });
-      }
-      if (status === "FULFILLED") {
-        for (const line of target.lines) for (const allocation of line.allocations) {
-          addMovement(draft, { batchId: allocation.batchId, productId: line.productId, type: "RELEASE", quantity: allocation.quantity, reason: `Fulfilled ${target.reference}`, reference: target.reference });
-          addMovement(draft, { batchId: allocation.batchId, productId: line.productId, type: "ISSUE", quantity: allocation.quantity, reason: `Fulfilled ${target.reference}`, reference: target.reference });
-        }
-      }
-      target.status = status;
-      target.updatedAt = new Date().toISOString();
-      audit(draft, `ORDER_${status}`, "order_request", target.reference, request.status, status);
-    });
-    return { ok: true, message: `${request.reference} ${status.toLowerCase()}.` };
-  }, [addMovement, audit, commit]);
-
   const markNotificationRead = useCallback((id: number) => commit((draft) => {
     const item = draft.notifications.find((notification) => notification.id === id);
     if (item && !item.readAt) item.readAt = new Date().toISOString();
@@ -688,49 +628,6 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     commit((draft) => { draft.notifications.unshift(item); });
     return item;
   }, [commit]);
-
-  const setCartQuantity = useCallback((productId: number, quantity: number): FormState => {
-    const product = stateRef.current.products.find((entry) => entry.id === productId && entry.isActive);
-    if (!product) return { error: "That coffee is not available." };
-    if (!Number.isInteger(quantity)) return { error: "Enter a whole number." };
-    commit((draft) => { if (quantity <= 0) delete draft.cart[String(productId)]; else draft.cart[String(productId)] = Math.min(500, quantity); });
-    return { ok: true, message: quantity <= 0 ? "Item removed." : "Cart updated." };
-  }, [commit]);
-
-  const checkout = useCallback<Store["checkout"]>((customer) => {
-    if (!customer.customerName.trim() || !customer.email.trim()) return { error: "Enter your name and email address." };
-    const cart = stateRef.current.cart;
-    const requested = Object.entries(cart).filter(([, quantity]) => quantity > 0);
-    if (!requested.length) return { error: "Your cart is empty." };
-    const reference = `ORD-${new Date().getFullYear()}-${String(nextId(stateRef.current.requests)).padStart(4, "0")}`;
-    const shortLines: NonNullable<FormState["shortLines"]> = [];
-    commit((draft) => {
-      const requestId = nextId(draft.requests);
-      const lines: OrderLine[] = requested.map(([productIdText, quantity], index) => {
-        const productId = Number(productIdText);
-        const plans = fefoPlan(draft, productId);
-        let remaining = quantity;
-        const allocations: { batchId: number; quantity: number }[] = [];
-        for (const plan of plans) {
-          const take = Math.min(plan.available, remaining);
-          if (take <= 0) continue;
-          allocations.push({ batchId: plan.batchId, quantity: take });
-          addMovement(draft, { batchId: plan.batchId, productId, type: "RESERVE", quantity: take, reason: `Held for ${reference}`, reference });
-          remaining -= take;
-          if (!remaining) break;
-        }
-        const reserved = quantity - remaining;
-        const product = draft.products.find((entry) => entry.id === productId)!;
-        if (reserved < quantity) shortLines.push({ sku: product.sku, requested: quantity, reserved, note: remaining ? `${remaining} unit(s) short` : null });
-        return { id: index + nextId(draft.requests.flatMap((entry) => entry.lines)), productId, quantityRequested: quantity, quantityReserved: reserved, status: reserved === quantity ? "RESERVED" : reserved ? "PARTIAL" : "SHORT", note: remaining ? `${remaining} unit(s) short` : null, allocations };
-      });
-      const now = new Date().toISOString();
-      draft.requests.push({ id: requestId, reference, ...customer, status: "NEW", createdAt: now, updatedAt: now, lines });
-      draft.cart = {};
-      draft.notifications.unshift({ id: nextId(draft.notifications), type: "ORDER_RECEIVED", severity: "INFO", title: "New order request", message: `Request ${reference} from ${customer.customerName} is awaiting confirmation.`, entityType: "order_request", entityId: String(requestId), readAt: null, createdAt: now });
-    });
-    return { ok: true, reference, message: "Your request has been placed and available stock is held.", shortLines };
-  }, [addMovement, commit]);
 
   const value = useMemo<Store>(() => ({
     state,
@@ -749,13 +646,10 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     setProductActive,
     createSupplier,
     createDelivery,
-    updateRequest,
     markNotificationRead,
     markAllNotificationsRead,
     pushNotification,
-    setCartQuantity,
-    checkout,
-  }), [state, hydrated, login, logout, reset, createLot, quarantineLot, releaseLot, issueStock, adjustStock, reverseMovement, createProduct, setProductActive, createSupplier, createDelivery, updateRequest, markNotificationRead, markAllNotificationsRead, pushNotification, setCartQuantity, checkout]);
+  }), [state, hydrated, login, logout, reset, createLot, quarantineLot, releaseLot, issueStock, adjustStock, reverseMovement, createProduct, setProductActive, createSupplier, createDelivery, markNotificationRead, markAllNotificationsRead, pushNotification]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
@@ -764,21 +658,6 @@ export function useMockStore(): Store {
   const store = useContext(StoreContext);
   if (!store) throw new Error("useMockStore must be used inside MockStoreProvider");
   return store;
-}
-
-export function cartView(state: MockState) {
-  const summaries = productSummaries(state);
-  const lines = Object.entries(state.cart).flatMap(([productId, quantity]) => {
-    const product = state.products.find((entry) => entry.id === Number(productId));
-    if (!product) return [];
-    const available = summaries.find((entry) => entry.product.id === product.id)?.available ?? 0;
-    return [{ product, quantity, lineTotal: quantity * product.unitPrice, available, exceedsAvailable: quantity > available }];
-  });
-  return { lines, itemCount: lines.reduce((sum, line) => sum + line.quantity, 0), subtotal: lines.reduce((sum, line) => sum + line.lineTotal, 0), hasUnavailable: lines.some((line) => line.exceedsAvailable) };
-}
-
-export function slugForProduct(product: Pick<Product, "sku">): string {
-  return product.sku.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
 export function downloadCsv(filename: string, rows: (string | number | null)[][]): void {

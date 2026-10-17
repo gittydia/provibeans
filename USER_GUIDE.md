@@ -127,8 +127,8 @@ The morning-glance screen. Four figures across the top, then five panels:
 |---|---|
 | **Alerts** | Everything that needs a human decision today |
 | **Stock by product** | A thumbnail of the pack, then on hand / reserved / available per SKU, plus a **State** badge |
-| **FEFO watchlist** | Lots approaching expiry, soonest first |
-| **Blocked lots** | Quarantined, expired or disposed lots, with the reason |
+| **FEFO watchlist** | Batches approaching expiry, soonest first |
+| **Blocked batches** | Quarantined, expired or disposed batches, with the reason |
 | **Recent movements** | The last few ledger entries |
 
 **The State badge** is derived, not typed in. It reads one of:
@@ -138,36 +138,36 @@ The morning-glance screen. Four figures across the top, then five panels:
 | **Above reorder point** | Available is above the reorder level — nothing to do |
 | **Reorder** | Available has fallen to or below the reorder point |
 | **Low stock** | Available is at or below the low-stock level |
-| **Expired hold** | Reserved units exist on a lot that has since expired |
+| **Expired hold** | Reserved units exist on a batch that has since expired |
 
 It is always describing the **available** figure, never on-hand.
 
-### Lots & receiving
+### Batches & receiving
 
-**Receive a lot** — the form you use when a delivery arrives. Fields: lot code (must be
+**Receive a batch** — the form you use when a delivery arrives. Fields: batch code (must be
 unique), product, quantity, unit, expiry date, best-before date, supplier, delivery
-reference, notes. Button: **Receive lot**.
+reference, notes. Button: **Receive batch**.
 
-**All lots** — the full register, one row per lot with its dates, status and balances.
+**All batches** — the full register, one row per batch with its dates, status and balances.
 
-**Quarantine** — holds a lot so it can never be issued. Give a reason; it is stored on the
-lot and shown wherever the lot appears. Button: **Quarantine**.
+**Quarantine** — holds a batch so it can never be issued. Give a reason; it is stored on the
+batch and shown wherever the batch appears. Button: **Quarantine**.
 
-**Hold a lot** — takes a lot out of service in one step. Button: **Release to available**
-returns a quarantined lot to normal service.
+**Hold a batch** — takes a batch out of service in one step. Button: **Release to available**
+returns a quarantined batch to normal service.
 
-Quarantined lots drop out of the FEFO plan and out of *available*, and appear under
-**Blocked lots** on the dashboard.
+Quarantined batches drop out of the FEFO plan and out of *available*, and appear under
+**Blocked batches** on the dashboard.
 
 ### Issue & movements
 
-**FEFO recommendation** — pick a product and it recommends which lot to use, ordered by
+**FEFO recommendation** — pick a product and it recommends which batch to use, ordered by
 earliest effective date (expiry, falling back to best-before, then receipt date). Expired
-and quarantined lots are excluded from the plan entirely rather than filtered out
+and quarantined batches are excluded from the plan entirely rather than filtered out
 afterwards, so a stale suggestion can't leak one in.
 
-**Issue stock** — pick the lot, enter quantity and a reference. Blocked if it would take
-a lot negative. Button: **Issue stock**.
+**Issue stock** — pick the batch, enter quantity and a reference. Blocked if it would take
+a batch negative. Button: **Issue stock**.
 
 **Record a movement** — the general-purpose form for every other event: return, damage,
 disposal, adjustment, count. Button: **Record movement**.
@@ -185,13 +185,13 @@ Master data, **administrator and owner only**.
 - **Products** — SKU, name, origin, species, process, roast, weight, price, low-stock
   level, reorder point. Adding one also creates its SKU.
 - **Suppliers** — name, contact, lead time.
-- **Record a delivery** — links a supplier to a set of lots.
+- **Record a delivery** — links a supplier to a set of batches.
 
 ### Reports & activity
 
 **Administrator and owner only for the CSV export.**
 
-- **Stock by lot** — the position per lot with the date that drives FEFO
+- **Stock by batch** — the position per batch with the date that drives FEFO
 - **Movement history** — the full ledger with filters
 - **Activity log** — who did what, when, with before/after values
 - **CSV export** — the ledger as a file
@@ -233,49 +233,37 @@ Weeks are **ISO weeks**, running Monday to Sunday.
 > removes it from *available* but leaves it physically present, so counting a reservation
 > as stock leaving the building would overstate the movement.
 
-### Order requests
-
-Reservations. Staff see everything that has been held and can act on it:
-
-| Action | What it does |
-|---|---|
-| **Confirm** | Status → `CONFIRMED` |
-| **Fulfil** | Writes `ISSUE` + `RELEASE`, request closes as `FULFILLED` |
-| **Cancel** | Writes `CANCEL`, stock returns to available |
-
-Each request shows which lots were held and how much of each line was actually covered.
-
 ---
 
 ## 5. Everyday tasks
 
 ### Receive a delivery
 
-1. **Lots & receiving → Receive a lot**
-2. Enter the lot code from the paperwork — it must be unique
+1. **Batches & receiving → Receive a batch**
+2. Enter the batch code from the paperwork — it must be unique
 3. Choose the product, quantity and unit
 4. Enter expiry and/or best-before. If you supply both, expiry must not be *earlier*
    than best-before; the database rejects it
 5. Add the supplier and delivery reference
-6. **Receive lot**
+6. **Receive batch**
 
-The lot appears as `ACTIVE` and its quantity immediately increases *available*.
+The batch appears as `ACTIVE` and its quantity immediately increases *available*.
 
 ### Issue stock
 
 1. **Issue & movements**
-2. Pick the product. Read the **FEFO recommendation** — it is the lot the plan wants you
+2. Pick the product. Read the **FEFO recommendation** — it is the batch the plan wants you
    to use, and it tells you why (earliest effective date)
-3. If the plan is right, use it. If not, you may pick another active, unexpired lot
+3. If the plan is right, use it. If not, you may pick another active, unexpired batch
 4. Enter quantity and a reference
 5. **Issue stock**
 
-Overselling is refused — you cannot issue more than the lot holds.
+Overselling is refused — you cannot issue more than the batch holds.
 
-### Hold a lot
+### Hold a batch
 
-**Lots & receiving → Quarantine**, give a reason, press **Quarantine**. The lot drops out
-of both the FEFO plan and *available*, and shows under **Blocked lots** on the dashboard.
+**Batches & receiving → Quarantine**, give a reason, press **Quarantine**. The batch drops out
+of both the FEFO plan and *available*, and shows under **Blocked batches** on the dashboard.
 
 Press **Release to available** on the same screen to undo it.
 
@@ -306,8 +294,8 @@ append-only `stock_movements` ledger:
 | Figure | Means |
 |---|---|
 | **On hand** | Physical units present, whether or not they may be issued |
-| **Reserved** | Committed to an approved request, not yet released |
-| **Available** | On hand minus reserved, counting only active, unexpired, unquarantined lots |
+| **Reserved** | Held by a `RESERVE` movement, not yet released |
+| **Available** | On hand minus reserved, counting only active, unexpired, unquarantined batches |
 
 A displayed total therefore **cannot drift** from the movements behind it, because it is
 derived from them on every read.
@@ -322,11 +310,11 @@ of *on hand*. That is why "reserved" is a separate number and not a fudge.
 
 ### FEFO
 
-When issuing without naming a lot, the system recommends by **effective date**:
+When issuing without naming a batch, the system recommends by **effective date**:
 `expiryDate` → `bestBeforeDate` → `receivedAt`, earliest first. Expired and quarantined
-lots are excluded from the plan itself, not filtered out afterwards.
+batches are excluded from the plan itself, not filtered out afterwards.
 
-### Lot status
+### Batch status
 
 `ACTIVE` → issuable · `QUARANTINE` → blocked, with a reason · `DEPLETED` → zero
 available · `DISPOSED` → written off
@@ -338,24 +326,18 @@ application layer, so you get a readable message instead of a constraint error.
 
 ---
 
-## 7. Optional features
+## 7. Out of scope
 
-Two things are built but switched **off**, because they sit outside the project scope.
-Set the flag, rebuild, and they come back.
+Customer ordering is **Future Work** in `project-plan.md`, and *Scope and Limitations* rules
+out end-to-end e-commerce and online payment processing. It is therefore not built and not
+reachable: there is no cart, no checkout, and no public ordering route.
 
-```powershell
-$env:NEXT_PUBLIC_COMMERCE="1"
-npm run build
-npm run start
-```
+Holding stock is a different thing and is **in** scope. Reservations are driven from
+**Issue & movements** with the `RESERVE`, `RELEASE` and `CANCEL` movement types, and the
+reserved figure appears on **Batches & receiving** and the dashboard.
 
-| Feature | Default | Governed by |
-|---|---|---|
-| Cart, add-to-cart, checkout | **Off** — `/cart` returns 404 | `NEXT_PUBLIC_COMMERCE` |
-| Customer ordering and enquiries | **Removed entirely** — `/order` returns 404 | nothing; deleted |
-
-The reservation engine underneath is **not** optional and stays live either way — holding
-stock is core inventory work.
+`npm run verify:frontend` fails the build if `app/cart`, `app/(app)/requests` or
+`lib/features.ts` reappear, so the boundary cannot quietly regress.
 
 ---
 
@@ -369,11 +351,10 @@ npm run verify:all
 
 | Suite | Covers |
 |---|---|
-| `verify:rules` | The database rejects invalid dates, duplicate SKUs and lot codes, zero and negative quantities, negative prices, and orphaned references |
-| `verify:inventory` | FEFO excludes expired lots, allocation spills across lots, over-issue and over-reserve are refused, releasing quarantine restores availability, alerts fire and don't duplicate |
+| `verify:rules` | The database rejects invalid dates, duplicate SKUs and batch codes, zero and negative quantities, negative prices, and orphaned references |
+| `verify:inventory` | FEFO excludes expired batches, allocation spills across batches, over-issue and over-reserve are refused, releasing quarantine restores availability, alerts fire and don't duplicate |
 | `verify:periods` | Week, month and year boundaries are exact and contiguous, periods never overlap, and each report's closing balance reconciles with the dashboard |
 | `verify:smoke` | Anonymous requests to every protected route redirect to login, a forged cookie is rejected, authenticated pages render real data, CSV export refuses anonymous callers |
-| `verify:cart` | Cart and checkout end-to-end — **prints SKIPPED while the feature is off** |
 | `verify:links` | No page is an orphan, no link points at a missing page, and out-of-scope features are genuinely unreachable |
 
 Each prints an `x/y checks passed` summary and exits non-zero on failure, so they can be
@@ -400,9 +381,6 @@ You have not seeded. Run `npm run db:seed`.
 **A suite fails with "server must be running"**
 `verify:smoke`, `verify:cart` and `verify:links` need `npm run start` already serving.
 
-**The cart link is missing**
-Correct. It is off by default — see [Optional features](#7-optional-features).
-
 **Dates rejected: "expiry before best-before"**
 Both were supplied and expiry is earlier. Either correct the entry or leave expiry blank.
 
@@ -412,9 +390,8 @@ Both were supplied and expiry is earlier. Either correct the entry or leave expi
 
 | Path | Contents |
 |---|---|
-| `app/(app)/` | Authenticated area — all six screens |
+| `app/(app)/` | Authenticated area — all five screens |
 | `lib/inventory/ledger.ts` | Balance derivation and FEFO |
-| `lib/inventory/orders.ts` | Reservations |
 | `lib/inventory/record.ts` | Every validated write |
 | `lib/inventory/alerts.ts` | Alert derivation |
 | `lib/auth/session.ts` | Sessions and role guards |

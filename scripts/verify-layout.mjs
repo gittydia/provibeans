@@ -54,7 +54,6 @@ const ROUTES = [
   "/catalog",
   "/reports",
   "/reports/periods",
-  "/requests",
 ];
 
 /* Columns that deliberately opt out of the shared cell gutter: the thumbnail is
@@ -363,6 +362,18 @@ async function main() {
      check has no business doing that. */
   const signIn = await context.newPage();
   await signIn.goto(`${base}/login`, { waitUntil: "domcontentloaded" });
+  /* `domcontentloaded` fires before React hydrates. Submitting in that window
+     bypasses the form's own onSubmit, the browser does a plain GET to /login,
+     and the wait below times out on a suite that is actually fine. Wait for the
+     handler to exist before touching anything. */
+  await signIn.waitForFunction(
+    () => {
+      const form = document.querySelector("form");
+      return Boolean(form) && Object.keys(form).some((key) => key.startsWith("__react"));
+    },
+    null,
+    { timeout: 30_000 },
+  );
   await signIn.fill('input[name="email"]', EMAIL);
   await signIn.fill('input[name="password"]', PASSWORD);
   await Promise.all([

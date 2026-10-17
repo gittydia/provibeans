@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef } from "react";
 import { useNotifications } from "./store";
 
 const SEVERITY_CLASS: Record<string, string> = {
@@ -24,24 +24,48 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString("en-PH", { day: "numeric", month: "short" });
 }
 
-export function NotificationBell({ variant }: { variant: "sidebar" | "bar" }) {
+export function NotificationBell({
+  variant,
+  open,
+  onOpenChange,
+}: {
+  variant: "sidebar" | "bar";
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const { items, unreadCount, loading, error, toasts, dismissToast, markRead, markAllRead } =
     useNotifications();
-  const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const openedHereRef = useRef(false);
+  const wasOpenRef = useRef(false);
   const panelId = useId();
+  const titleId = useId();
 
   const close = useCallback(() => {
-    setOpen(false);
-    buttonRef.current?.focus();
-  }, []);
+    if (openedHereRef.current) {
+      buttonRef.current?.focus({ preventScroll: true });
+      openedHereRef.current = false;
+    }
+    onOpenChange(false);
+  }, [onOpenChange]);
 
   useEffect(() => {
-    if (!open) return;
+    if (open && openedHereRef.current) closeButtonRef.current?.focus({ preventScroll: true });
+    if (!open && wasOpenRef.current && openedHereRef.current) {
+      buttonRef.current?.focus({ preventScroll: true });
+      openedHereRef.current = false;
+    }
+    wasOpenRef.current = open;
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !openedHereRef.current) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        event.preventDefault();
         event.stopPropagation();
         close();
         return;
@@ -62,24 +86,19 @@ export function NotificationBell({ variant }: { variant: "sidebar" | "bar" }) {
       }
     };
 
-    const onPointerDown = (event: MouseEvent) => {
+    const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
-      if (panelRef.current?.contains(target)) return;
-      if (buttonRef.current?.contains(target)) return;
-      setOpen(false);
+      if (panelRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
+      close();
     };
 
     document.addEventListener("keydown", onKeyDown, true);
-    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("pointerdown", onPointerDown);
     return () => {
       document.removeEventListener("keydown", onKeyDown, true);
-      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("pointerdown", onPointerDown);
     };
   }, [close, open]);
-
-  useEffect(() => {
-    if (open) panelRef.current?.querySelector<HTMLElement>("button")?.focus();
-  }, [open]);
 
   return (
     <div
@@ -91,13 +110,21 @@ export function NotificationBell({ variant }: { variant: "sidebar" | "bar" }) {
         type="button"
         className="notif-toggle"
         aria-expanded={open}
+        aria-haspopup="dialog"
         aria-controls={panelId}
         aria-label={
           unreadCount === 0
             ? "Notifications, none unread"
             : `Notifications, ${unreadCount} unread`
         }
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          if (open) {
+            close();
+            return;
+          }
+          openedHereRef.current = true;
+          onOpenChange(true);
+        }}
       >
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
           <path
@@ -113,9 +140,16 @@ export function NotificationBell({ variant }: { variant: "sidebar" | "bar" }) {
       </button>
 
       {open ? (
-        <div className="notif-panel" id={panelId} ref={panelRef} role="dialog" aria-label="Notifications">
+        <div
+          className="notif-panel"
+          id={panelId}
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+        >
           <header className="notif-panel-head">
-            <strong>Notifications</strong>
+            <strong id={titleId}>Notifications</strong>
             <button
               type="button"
               className="notif-link"
@@ -123,6 +157,17 @@ export function NotificationBell({ variant }: { variant: "sidebar" | "bar" }) {
               disabled={unreadCount === 0}
             >
               Mark all read
+            </button>
+            <button
+              ref={closeButtonRef}
+              type="button"
+              className="notif-close"
+              aria-label="Close notifications"
+              onClick={close}
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" focusable="false">
+                <path d="m6 6 12 12M18 6 6 18" />
+              </svg>
             </button>
           </header>
 

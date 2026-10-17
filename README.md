@@ -126,7 +126,7 @@ browser layout suite.
 
 `verify:layout` measures rendered geometry rather than comparing screenshots.
 It checks table header alignment, shared cell gutters, row alignment, card
-heights, content width, and overflow containment across seven screens and seven
+heights, content width, and overflow containment across thirteen screens and seven
 viewport sizes. It signs in through the demo form and does not access or mutate
 any external data source.
 

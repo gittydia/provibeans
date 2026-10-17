@@ -18,15 +18,15 @@
   width: 40px;
   height: 40px;
   padding: 0;
-  border: 1px solid rgb(245 240 232 / 0.28);
+  border: 1px solid var(--app-sidebar-line);
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--ivory);
+  color: var(--app-sidebar-ink);
   cursor: pointer;
 }
 
 .notif-toggle:hover {
-  background: rgb(245 240 232 / 0.1);
+  background: var(--app-sidebar-active);
 }
 
 .notif-badge {
@@ -46,7 +46,7 @@
 
 .notif-panel {
   position: absolute;
-  z-index: 6;
+  z-index: 55;
   top: calc(100% + 8px);
   left: 0;
   display: grid;
@@ -56,8 +56,9 @@
   background: var(--app-surface);
   border: 1px solid var(--app-line);
   border-radius: var(--radius-md);
-  box-shadow: 0 18px 40px rgb(44 31 27 / 0.28);
+  box-shadow: 0 18px 40px var(--app-shadow);
   color: var(--app-ink);
+  animation: notif-panel-in calc(var(--motion) * 0.18s) var(--ease);
 }
 
 .notif-panel-head,
@@ -75,6 +76,37 @@
 .notif-panel-head {
   top: 0;
   border-bottom: 1px solid var(--app-line);
+}
+
+.notif-panel-head > strong {
+  margin-inline-end: auto;
+}
+
+.notif-close {
+  display: inline-grid;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--app-ink-soft);
+  cursor: pointer;
+  transition:
+    transform calc(var(--motion) * 0.12s) var(--ease),
+    background-color calc(var(--motion) * 0.18s) var(--ease),
+    color calc(var(--motion) * 0.18s) var(--ease);
+}
+
+.notif-close:hover {
+  background: var(--app-surface);
+  color: var(--app-ink);
+}
+
+.notif-close:active {
+  transform: translateY(1px) scale(0.98);
 }
 
 .notif-panel-foot {
@@ -110,7 +142,7 @@
 
 .notif-state-error {
   padding: 9px 14px;
-  background: #f6e2dc;
+  background: var(--app-notice-crit-bg);
   color: var(--app-crit);
   text-align: left;
 }
@@ -146,7 +178,7 @@
 }
 
 .notif-item:not(.notif-item-read) {
-  background: #fbf6ec;
+  background: var(--app-unread-bg);
 }
 
 .notif-dot {
@@ -189,7 +221,7 @@
 
 .notif-toasts {
   position: fixed;
-  z-index: 30;
+  z-index: 80;
   right: 16px;
   bottom: 16px;
   display: grid;
@@ -205,13 +237,14 @@
   border-left: 3px solid var(--app-info);
   border-radius: var(--radius-sm);
   background: var(--app-surface);
-  box-shadow: 0 12px 30px rgb(44 31 27 / 0.24);
+  box-shadow: 0 12px 30px var(--app-shadow-soft);
   pointer-events: auto;
+  animation: notif-toast-in calc(var(--motion) * 0.22s) var(--ease);
 }
 
-.notif-toast .badge-crit { border-left-color: var(--app-crit); }
-.notif-toast .badge-warn { border-left-color: var(--app-warn); }
-.notif-toast .badge-info { border-left-color: var(--app-info); }
+.notif-toast.badge-crit { border-left-color: var(--app-crit); }
+.notif-toast.badge-warn { border-left-color: var(--app-warn); }
+.notif-toast.badge-info { border-left-color: var(--app-info); }
 
 .notif-toast .notif-link {
   justify-self: end;
@@ -220,6 +253,16 @@
 /* The mobile bar carries the bell only; the sidebar is off-canvas there. */
 .mobile-bar {
   display: none;
+}
+
+@keyframes notif-panel-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes notif-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @media (max-width: 860px) {
@@ -231,7 +274,7 @@
     position: fixed;
     top: 10px;
     right: 12px;
-    z-index: 3;
+    z-index: 35;
     display: block;
   }
 
@@ -239,9 +282,12 @@
     left: auto;
     right: 0;
   }
-}
 
-@media (max-width: 620px) {
+  .mobile-topbar .mobile-bar {
+    position: static;
+    margin-inline-start: auto;
+  }
+
   .notif-toggle {
     width: 44px;
     height: 44px;
@@ -253,17 +299,13 @@
     display: inline-flex;
     align-items: center;
   }
+}
 
+@media (max-width: 620px) {
   .notif-toasts {
     right: 12px;
     bottom: 12px;
     left: 12px;
     width: auto;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .notif-panel {
-    transition: none;
   }
 }

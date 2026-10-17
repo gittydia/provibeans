@@ -52,16 +52,6 @@ export default function PeriodReportsPage() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Periodic reports</h1>
-          <p>
-            Stock movement summarised over a week, a month or a year. Opening and closing figures are
-            derived from the same ledger the dashboard uses, so they always reconcile.
-          </p>
-        </div>
-      </div>
-
       <div className="panel">
         <header>
           <h2>{period.label}</h2>

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NotificationBell } from "./notifications/bell";
 import { NotificationsProvider } from "./notifications/store";
+import { AppNavStateProvider, RailNav } from "./nav";
+import { ThemeButton } from "./ui/theme-button";
 import { TableLabels } from "@/lib/table-labels";
 
 const desktopQuery = "(min-width: 861px)";
@@ -33,14 +35,17 @@ function NavIcon({ children }: { children: ReactNode }) {
 
 export function AppShell({ sidebar, children }: { sidebar: ReactNode; children: ReactNode }) {
   const [isDesktop, setIsDesktop] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const closeButton = useRef<HTMLButtonElement>(null);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+  const [overlay, setOverlay] = useState<"nav" | "notifications" | null>(null);
+  const sidebarToggle = useRef<HTMLButtonElement>(null);
+  const mobileToggle = useRef<HTMLButtonElement>(null);
+  const previousOverlay = useRef<typeof overlay>(null);
 
   useEffect(() => {
     const query = window.matchMedia(desktopQuery);
     const syncViewport = () => {
       setIsDesktop(query.matches);
-      setIsOpen(query.matches);
+      if (query.matches) setOverlay((current) => current === "nav" ? null : current);
     };
 
     syncViewport();
@@ -50,25 +55,33 @@ export function AppShell({ sidebar, children }: { sidebar: ReactNode; children: 
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !isDesktop) setIsOpen(false);
+      if (event.key !== "Escape" || overlay === null) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setOverlay(null);
     };
 
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [isDesktop]);
+  }, [overlay]);
 
   useEffect(() => {
-    if (isOpen && !isDesktop) closeButton.current?.focus();
-  }, [isDesktop, isOpen]);
+    if (overlay === "nav") sidebarToggle.current?.focus({ preventScroll: true });
+    if (previousOverlay.current === "nav" && overlay === null) mobileToggle.current?.focus({ preventScroll: true });
+    previousOverlay.current = overlay;
+  }, [overlay]);
 
-  const closeOnMobileNavigation = () => {
-    if (!isDesktop) setIsOpen(false);
+  const closeOnMobileNavigation = (event: React.MouseEvent<HTMLElement>) => {
+    if (!isDesktop && (event.target as Element).closest("a[href]")) setOverlay(null);
   };
+
+  const sidebarOpen = isDesktop ? !desktopCollapsed : overlay === "nav";
+  const navCollapsed = isDesktop && desktopCollapsed;
 
   /* One label drives both the accessible name and the tooltip, so the two can
      never describe different actions. */
   const toggleLabel = isDesktop
-    ? isOpen
+    ? !desktopCollapsed
       ? "Collapse navigation"
       : "Expand navigation"
     : "Close navigation";
@@ -76,50 +89,71 @@ export function AppShell({ sidebar, children }: { sidebar: ReactNode; children: 
   return (
     <NotificationsProvider>
       <TableLabels />
-      <div className={`app-wrap ${isOpen ? "sidebar-open" : "sidebar-closed"}`}>
-        <button
-          type="button"
-          className="mobile-nav-toggle"
-          aria-controls="primary-navigation"
-          aria-expanded={isOpen}
-          aria-label="Open navigation"
-          data-tooltip="Open navigation"
-          onClick={() => setIsOpen(true)}
-        >
-          <NavIcon>
-            <path d="M4 7h16M4 12h16M4 17h16" />
-          </NavIcon>
-        </button>
-        <div className="mobile-bar">
-          <NotificationBell variant="bar" />
-        </div>
+      {overlay !== null ? (
         <button
           type="button"
           className="sidebar-scrim"
-          aria-label="Close navigation"
-          onClick={() => setIsOpen(false)}
+          aria-label={overlay === "nav" ? "Close navigation" : "Close notifications"}
+          onClick={() => setOverlay(null)}
         />
+      ) : null}
+      <div className={`app-wrap ${sidebarOpen ? "sidebar-open" : "sidebar-closed"}`}>
+        <header className="mobile-topbar">
+          <button
+            ref={mobileToggle}
+            type="button"
+            className="mobile-nav-toggle"
+            aria-controls="primary-navigation"
+            aria-expanded={overlay === "nav"}
+            aria-label="Open navigation"
+            data-tooltip="Open navigation"
+            onClick={() => setOverlay("nav")}
+          >
+            <NavIcon>
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </NavIcon>
+          </button>
+          <span>Provi Beans</span>
+          <ThemeButton />
+          <div className="mobile-bar">
+            <NotificationBell
+              variant="bar"
+              open={overlay === "notifications"}
+              onOpenChange={(open) => setOverlay(open ? "notifications" : null)}
+            />
+          </div>
+        </header>
         <div className="shell">
           <aside className="side" id="primary-navigation" onClick={closeOnMobileNavigation}>
             <button
-              ref={closeButton}
+              ref={sidebarToggle}
               type="button"
               className="sidebar-toggle"
               aria-controls="primary-navigation"
-              aria-expanded={isOpen}
+              aria-expanded={sidebarOpen}
               aria-label={toggleLabel}
               data-tooltip={toggleLabel}
-              onClick={(event) => {
-                event.stopPropagation();
-                setIsOpen((open) => !open);
+              onClick={() => {
+                if (isDesktop) setDesktopCollapsed((collapsed) => !collapsed);
+                else setOverlay(null);
               }}
             >
               <NavIcon>
                 <path d="m14 6-6 6 6 6" />
               </NavIcon>
             </button>
-            <NotificationBell variant="sidebar" />
-            <div className="side-scroll">{sidebar}</div>
+            {/* Sits in the desktop controls row beside the bell; below 861px
+                the sidebar copy is hidden and the topbar keeps the only one. */}
+            <ThemeButton />
+            <NotificationBell
+              variant="sidebar"
+              open={overlay === "notifications"}
+              onOpenChange={(open) => setOverlay(open ? "notifications" : null)}
+            />
+            {navCollapsed ? <RailNav /> : null}
+            <div className="side-scroll">
+              <AppNavStateProvider collapsed={navCollapsed}>{sidebar}</AppNavStateProvider>
+            </div>
           </aside>
           <main className="main">{children}</main>
         </div>

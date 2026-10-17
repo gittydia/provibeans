@@ -15,7 +15,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (hydrated && !user) router.replace("/login?reason=auth");
   }, [hydrated, router, user]);
 
-  if (!hydrated || !user) return null;
+  if (!hydrated) {
+    return (
+      <div className="app-wrap">
+        <div className="app-skeleton" aria-hidden="true">
+          <div className="skeleton-block skeleton-sidebar" />
+          <div className="skeleton-content">
+            <div className="skeleton-block skeleton-header" />
+            <div className="skeleton-block" />
+            <div className="skeleton-block" />
+            <div className="skeleton-block" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   return (
     <AppShell

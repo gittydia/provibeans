@@ -50,9 +50,16 @@ const VIEWPORTS = [
 const ROUTES = [
   "/dashboard",
   "/batches",
+  "/batches/receive",
+  "/batches/quarantine",
   "/issue",
+  "/issue/movements",
   "/catalog",
+  "/catalog/suppliers",
+  "/catalog/deliveries",
   "/reports",
+  "/reports/movements",
+  "/reports/activity",
   "/reports/periods",
 ];
 

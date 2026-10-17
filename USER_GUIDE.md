@@ -115,7 +115,9 @@ and in the **Products** table under Products & suppliers.
 
 ## 4. The inventory system, screen by screen
 
-Six screens, in the left navigation.
+Five screens, in the left navigation. The **Dashboard** is a single page; the other four are
+section pages with **tabs** — the tab strip sits under the page heading, and each tab is its
+own route with its own URL.
 
 ### Dashboard — "Stock control"
 
@@ -144,11 +146,14 @@ It is always describing the **available** figure, never on-hand.
 
 ### Batches & receiving
 
-**Receive a batch** — the form you use when a delivery arrives. Fields: batch code (must be
-unique), product, quantity, unit, expiry date, best-before date, supplier, delivery
-reference, notes. Button: **Receive batch**.
+Three tabs: **All batches** (`/batches`), **Receive** (`/batches/receive`) and
+**Quarantine** (`/batches/quarantine`).
 
 **All batches** — the full register, one row per batch with its dates, status and balances.
+
+**Receive** — the form you use when a delivery arrives. Fields: batch code (must be
+unique), product, quantity, unit, expiry date, best-before date, supplier, delivery
+reference, notes. Button: **Receive batch**.
 
 **Quarantine** — holds a batch so it can never be issued. Give a reason; it is stored on the
 batch and shown wherever the batch appears. Button: **Quarantine**.
@@ -161,6 +166,10 @@ Quarantined batches drop out of the FEFO plan and out of *available*, and appear
 
 ### Issue & movements
 
+Two tabs: **Issue stock** (`/issue`) and **Movements** (`/issue/movements`).
+
+On the **Issue stock** tab:
+
 **FEFO recommendation** — pick a product and it recommends which batch to use, ordered by
 earliest effective date (expiry, falling back to best-before, then receipt date). Expired
 and quarantined batches are excluded from the plan entirely rather than filtered out
@@ -168,6 +177,8 @@ afterwards, so a stale suggestion can't leak one in.
 
 **Issue stock** — pick the batch, enter quantity and a reference. Blocked if it would take
 a batch negative. Button: **Issue stock**.
+
+On the **Movements** tab:
 
 **Record a movement** — the general-purpose form for every other event: return, damage,
 disposal, adjustment, count. Button: **Record movement**.
@@ -180,20 +191,23 @@ purpose.
 
 ### Products & suppliers
 
-Master data, **administrator and owner only**.
+Master data, **administrator and owner only**. Three tabs: **Products** (`/catalog`),
+**Suppliers** (`/catalog/suppliers`) and **Deliveries** (`/catalog/deliveries`).
 
 - **Products** — SKU, name, origin, species, process, roast, weight, price, low-stock
   level, reorder point. Adding one also creates its SKU.
 - **Suppliers** — name, contact, lead time.
-- **Record a delivery** — links a supplier to a set of batches.
+- **Deliveries** — links a supplier to a set of batches.
 
 ### Reports & activity
 
-**Administrator and owner only for the CSV export.**
+**Administrator and owner only for the CSV export.** Four tabs: **Stock by batch**
+(`/reports`), **Movements** (`/reports/movements`), **Activity** (`/reports/activity`) and
+**Periodic reports** (`/reports/periods`).
 
 - **Stock by batch** — the position per batch with the date that drives FEFO
-- **Movement history** — the full ledger with filters
-- **Activity log** — who did what, when, with before/after values
+- **Movements** — the full ledger with filters
+- **Activity** — who did what, when, with before/after values
 - **CSV export** — the ledger as a file
 - **Periodic reports** — see below
 
@@ -239,7 +253,7 @@ Weeks are **ISO weeks**, running Monday to Sunday.
 
 ### Receive a delivery
 
-1. **Batches & receiving → Receive a batch**
+1. **Batches & receiving → Receive**
 2. Enter the batch code from the paperwork — it must be unique
 3. Choose the product, quantity and unit
 4. Enter expiry and/or best-before. If you supply both, expiry must not be *earlier*
@@ -251,7 +265,7 @@ The batch appears as `ACTIVE` and its quantity immediately increases *available*
 
 ### Issue stock
 
-1. **Issue & movements**
+1. **Issue & movements → Issue stock**
 2. Pick the product. Read the **FEFO recommendation** — it is the batch the plan wants you
    to use, and it tells you why (earliest effective date)
 3. If the plan is right, use it. If not, you may pick another active, unexpired batch
@@ -333,8 +347,8 @@ out end-to-end e-commerce and online payment processing. It is therefore not bui
 reachable: there is no cart, no checkout, and no public ordering route.
 
 Holding stock is a different thing and is **in** scope. Reservations are driven from
-**Issue & movements** with the `RESERVE`, `RELEASE` and `CANCEL` movement types, and the
-reserved figure appears on **Batches & receiving** and the dashboard.
+**Issue & movements → Movements** with the `RESERVE`, `RELEASE` and `CANCEL` movement
+types, and the reserved figure appears on **Batches & receiving** and the dashboard.
 
 `npm run verify:frontend` fails the build if `app/cart`, `app/(app)/requests` or
 `lib/features.ts` reappear, so the boundary cannot quietly regress.
@@ -390,7 +404,7 @@ Both were supplied and expiry is earlier. Either correct the entry or leave expi
 
 | Path | Contents |
 |---|---|
-| `app/(app)/` | Authenticated area — all five screens |
+| `app/(app)/` | Authenticated area — the five screens and their tabs |
 | `lib/inventory/ledger.ts` | Balance derivation and FEFO |
 | `lib/inventory/record.ts` | Every validated write |
 | `lib/inventory/alerts.ts` | Alert derivation |

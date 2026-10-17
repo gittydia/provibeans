@@ -10,6 +10,13 @@ not one of them could tell whether a table header sat over its own column. So th
 was the instrument — `scripts/verify-layout.mjs` — and every claim below is a number it produced, not
 an impression. It scored the pre-fix tree at **36/44** and the fixed tree at **45/45**.
 
+> **Update — section sub-navigation.** The four inventory sections were later split into tabbed
+> sub-routes: `/batches/receive`, `/batches/quarantine`, `/issue/movements`, `/catalog/suppliers`,
+> `/catalog/deliveries`, `/reports/movements`, `/reports/activity` and `/reports/periods`.
+> `scripts/verify-layout.mjs` now measures **13 routes × 7 viewports**, with a shared `.section-tabs`
+> strip under the page head on each section. The audit below, its measurements and its screenshots
+> remain the pre-tab evidence; the layout standards it established are unchanged and still enforced.
+
 ---
 
 ## 1. Initial Audit
@@ -237,6 +244,7 @@ the five in `app/cart/`. Colour is not layout, and the cart is a 404 by default 
 | Vertical alignment in flex rows | `align-items: end` for headers with actions |
 | Form fields | `align-content: start`; the grid item stretches, its contents do not |
 | Panel rhythm | 22px between panels; 16px inside a panel body |
+| Section tabs | `.section-tabs` segment strip directly under the page head, 22px clearance; active tab carries `aria-current="page"` |
 | Stat cards | label → figure → caption, all three present |
 
 ---

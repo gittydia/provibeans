@@ -1,6 +1,6 @@
 "use client";
 
-import { cloneElement, isValidElement, useState, type SyntheticEvent } from "react";
+import { cloneElement, isValidElement, useId, useState, type SyntheticEvent } from "react";
 import type { ReactElement } from "react";
 import type { FormState } from "@/lib/mock-store";
 
@@ -66,13 +66,15 @@ export function Field({
   hint?: string;
   children: ReactElement;
 }) {
-  const errorId = `${name}-error`;
-  const hintId = `${name}-hint`;
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const id = name ? `${name}-${uid}` : uid;
+  const errorId = `${id}-error`;
+  const hintId = `${id}-hint`;
   const describedBy = [error ? errorId : null, hint ? hintId : null].filter(Boolean).join(" ") || undefined;
 
   const control = isValidElement(children)
     ? cloneElement(children as ReactElement<Record<string, unknown>>, {
-        id: name,
+        id,
         name,
         "aria-invalid": error ? true : undefined,
         "aria-describedby": describedBy,
@@ -80,7 +82,7 @@ export function Field({
     : children;
 
   return (
-    <label className="field" htmlFor={name}>
+    <label className="field" htmlFor={id}>
       <span>{label}</span>
       {control}
       {hint ? <small id={hintId}>{hint}</small> : null}

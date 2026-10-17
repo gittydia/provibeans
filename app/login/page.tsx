@@ -1,7 +1,13 @@
 "use client";
 
 import { useMockStore } from "@/lib/mock-store";
-import { SignInForm } from "./signin-form";
+import { SignInForm, type DemoAccount } from "./signin-form";
+
+const demoAccounts = [
+  { email: "admin@provibeans.ph", password: "ProviBeans2026", label: "administrator" },
+  { email: "staff@provibeans.ph", password: "ProviBeans2026", label: "inventory staff" },
+  { email: "owner@provibeans.ph", password: "ProviBeans2026", label: "owner / manager" },
+] as const satisfies readonly DemoAccount[];
 
 export default function LoginPage() {
   const { hydrated } = useMockStore();
@@ -13,8 +19,8 @@ export default function LoginPage() {
         <p className="eyebrow">Provi Beans</p>
         <h1>Stock control</h1>
         <p>
-          Sign in to the inventory and stock monitoring system. The demo administrator account is already
-          filled in — press <strong>Sign in</strong> to continue.
+          Sign in to the inventory and stock monitoring system. The demo administrator email is already
+          filled in, or choose a demo account below to fill both fields.
         </p>
 
         {reason === "signed-out" ? (
@@ -23,17 +29,7 @@ export default function LoginPage() {
           </p>
         ) : null}
 
-        <SignInForm />
-
-        <div className="demo">
-          <strong>Demo accounts</strong> — password <code>ProviBeans2026</code>
-          <br />
-          <code>admin@provibeans.ph</code> administrator
-          <br />
-          <code>staff@provibeans.ph</code> inventory staff
-          <br />
-          <code>owner@provibeans.ph</code> owner / manager
-        </div>
+        <SignInForm demoAccounts={demoAccounts} />
       </div>
     </div>
   );

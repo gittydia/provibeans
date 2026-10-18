@@ -89,7 +89,7 @@ export function ProductStateControl({ productId, sku, isActive }: { productId: n
       ) : null}
       <button
         type="button"
-        className="btn btn-quiet"
+        className="btn btn-quiet btn-small"
         aria-label={`${isActive ? "Deactivate" : "Reactivate"} ${sku}`}
         onClick={() => setState(setProductActive(productId, !isActive))}
       >

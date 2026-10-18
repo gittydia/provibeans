@@ -65,7 +65,7 @@ export function AccountStateControl({ userId, email, isActive }: { userId: numbe
       ) : null}
       <button
         type="button"
-        className="btn btn-quiet"
+        className="btn btn-quiet btn-small"
         aria-label={`${isActive ? "Deactivate" : "Reactivate"} ${email}`}
         onClick={() => setState(setUserActive(userId, !isActive))}
       >

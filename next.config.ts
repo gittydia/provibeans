@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // The dev server refuses to hand its runtime to an unrecognised origin, and
+  // the failure is silent: the page still renders from HTML, but React never
+  // hydrates, so the sign-in form falls back to a native GET submit and no
+  // amount of typing appears to work. Reaching this machine over Tailscale
+  // makes the browser origin the tailnet IP rather than localhost, so that
+  // origin has to be named here. Read it back with `tailscale ip -4`.
+  allowedDevOrigins: ["100.74.247.73"],
   async redirects() {
     return [
       {

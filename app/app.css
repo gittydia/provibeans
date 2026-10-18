@@ -1,4 +1,7 @@
 :root {
+  /* Form controls and scrollbars follow the chosen theme rather than the OS
+     preference, now that the app can differ from it. */
+  color-scheme: light;
   --app-bg: #efe7da;
   --app-surface: #f7f1e7;
   --app-sunk: #e6dccc;
@@ -7,6 +10,9 @@
   --app-ink-faint: #6f5d50;
   --app-line: #d8cab5;
   --app-accent: #7d5a3c;
+  /* Aliases resolve against the theme's own accent, so the dark and
+     prefers-color-scheme blocks need no separate link token. */
+  --app-link: var(--app-accent);
   --app-ok: #4c6146;
   --app-warn: #946316;
   --app-crit: #a13d2c;
@@ -20,7 +26,9 @@
   --app-sidebar-line: rgb(245 240 232 / 0.28);
   --app-sidebar-hover: rgb(245 240 232 / 0.08);
   --app-sidebar-active: rgb(245 240 232 / 0.12);
-  --app-sidebar-rule: rgb(245 240 232 / 0.14);
+--app-sidebar-rule: rgb(245 240 232 / 0.14);
+  --app-nav-icon: var(--app-sidebar-soft);
+  --app-nav-icon-active: var(--app-sidebar-ink);
   --app-solid-hover: #3f2c25;
   --app-solid-text: #f5f0e8;
   --app-status-text: #ffffff;
@@ -70,6 +78,7 @@
 }
 
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --app-bg: #1c1310;
   --app-surface: #2a1d18;
   --app-sunk: #241813;
@@ -86,7 +95,9 @@
   --app-sidebar-line: rgb(245 240 232 / 0.4);
   --app-sidebar-hover: rgb(245 240 232 / 0.1);
   --app-sidebar-active: rgb(245 240 232 / 0.16);
-  --app-sidebar-rule: rgb(245 240 232 / 0.18);
+--app-sidebar-rule: rgb(245 240 232 / 0.18);
+  --app-nav-icon: #9c8d7b;
+  --app-nav-icon-active: #cfc4b5;
   --app-accent: #c8a56a;
   --app-ok: #a9c79f;
   --app-warn: #e0b25c;
@@ -124,6 +135,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --app-bg: #1c1310;
     --app-surface: #2a1d18;
     --app-sunk: #241813;
@@ -140,7 +152,9 @@
     --app-sidebar-line: rgb(245 240 232 / 0.4);
     --app-sidebar-hover: rgb(245 240 232 / 0.1);
     --app-sidebar-active: rgb(245 240 232 / 0.16);
-    --app-sidebar-rule: rgb(245 240 232 / 0.18);
+--app-sidebar-rule: rgb(245 240 232 / 0.18);
+    --app-nav-icon: #9c8d7b;
+    --app-nav-icon-active: #cfc4b5;
     --app-accent: #c8a56a;
     --app-ok: #a9c79f;
     --app-warn: #e0b25c;
@@ -263,20 +277,6 @@
   background: var(--app-sidebar-hover);
 }
 
-/* The chevron points left when the rail is open and flips to point right when it
-   is collapsed, so the glyph shows which way the sidebar will travel. Rotating
-   the one drawn path is what makes that a single icon rather than two. */
-.sidebar-toggle .toggle-icon {
-  transform: rotate(0deg);
-  /* transform is compositor-only, and --motion collapses to 0.001 under
-     prefers-reduced-motion, so this needs no motion query of its own. */
-  transition: transform calc(var(--motion) * 0.22s) var(--ease);
-}
-
-.sidebar-closed .sidebar-toggle .toggle-icon {
-  transform: rotate(180deg);
-}
-
 /* One label source for both the accessible name and this bubble. It appears on
    :focus-visible as well as :hover, because a keyboard user has no pointer to
    hover with and an icon-only control is otherwise unlabelled for them. */
@@ -335,7 +335,7 @@
   align-self: center;
 }
 
-/* The expanded rail opens with a controls row: the collapse chevron on the left
+/* The expanded rail opens with a controls row: the sidebar toggle on the left
    edge and, on the right, the theme toggle beside the notification bell,
    directly above the wordmark. Stacked in the flex column the set read as stray
    buttons with a dead half-row beside them; sharing one row makes them read as
@@ -419,6 +419,20 @@
    a long label wraps. */
 .side nav:not(.rail-nav) a svg {
   flex: none;
+}
+
+/* The glyph used to inherit the label's own tone, so icon and text shouted at
+   equal volume. Its own token lets the icon sit one step back while the label
+   keeps the row's contrast. Both values stay well clear of the 4.5:1 floor,
+   because collapsing the sidebar leaves the glyph with no label beside it. */
+.side nav:not(.rail-nav) a svg,
+.rail-link svg {
+  color: var(--app-nav-icon);
+}
+
+.side nav:not(.rail-nav) a[aria-current="page"] svg,
+.rail-link[aria-current="page"] svg {
+  color: var(--app-nav-icon-active);
 }
 
 .side nav a:hover {
@@ -543,6 +557,11 @@
 }
 
 .panel > header {
+  /* The panel is the horizontal scroller, so without pinning the bar scrolls
+     with the table: its tint gets cut off on the right while the title leaves
+     the viewport on the left. Sticky keeps the whole strip over the scroller. */
+  position: sticky;
+  left: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -581,6 +600,14 @@
   gap: 16px;
 }
 
+/* Cells share their edges. The browser default separates them by 2px, so the
+   header and body borders double up and a sideways scroll clips the grid at
+   the edges; collapsing makes every shared edge a single continuous line. */
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
 /* One padding for every cell, headers included. A header row padded 9px against
    a body row's 10px reads as two rhythms stacked on top of each other. */
 th,
@@ -600,22 +627,13 @@ th {
 }
 
 td {
-  vertical-align: top;
+  /* One vertical rhythm for the whole row. A row is as tall as its tallest
+     cell, so anything left top-aligned rides above the figures and badges
+     beside it and the row reads as misaligned. */
+  vertical-align: middle;
   /* Lowers a cell's intrinsic minimum width so a single long value cannot
      inflate its column and push the rest of the table sideways. */
   overflow-wrap: anywhere;
-}
-
-/* A row is as tall as its tallest cell, so every single-value cell has to
-   centre against it or it reads as floating. Figures, identifiers, badges and
-   the thumbnail are single-value; only genuinely multi-line content — a sku
-   over its product name, a wrapped reason — stays top-aligned. */
-td.num,
-td.code,
-td.thumb,
-td:has(> .badge),
-td:has(.btn) {
-  vertical-align: middle;
 }
 
 tbody tr:last-child td {
@@ -630,6 +648,13 @@ tbody tr:hover {
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
+}
+
+/* The dashboard's Qty column is a small fixed-range count; centring it keeps
+   the digits under their header instead of pinned to the column's right edge.
+   Vertical centring comes from the single-value cell list above. */
+.num-center {
+  text-align: center;
 }
 
 .code {
@@ -698,6 +723,13 @@ tbody tr:hover {
 
 .field small[data-error="true"] {
   color: var(--app-crit);
+}
+
+/* Nothing paints plain links, so the UA blue leaks through — off-palette on
+   the light surfaces and unreadable on dark ones. The accent clears contrast
+   in both themes, and classed links keep their own colours by specificity. */
+a {
+  color: var(--app-link);
 }
 
 input,
@@ -837,6 +869,19 @@ textarea[aria-invalid="true"] {
 .icon-btn:hover {
   background: var(--app-sunk);
   color: var(--app-ink);
+}
+
+/* The sidebar paints its own dark surface, so an icon button inside it cannot
+   keep the main-surface tokens: on the light theme that pairing measured
+   2.43:1, under the 3:1 floor for meaningful icons. It takes the sidebar's own
+   ink and hover wash instead, the same pair the nav links already use. */
+.side > .icon-btn {
+  color: var(--app-sidebar-soft);
+}
+
+.side > .icon-btn:hover {
+  background: var(--app-sidebar-hover);
+  color: var(--app-sidebar-ink);
 }
 
 .row-menu-trigger {
@@ -1432,6 +1477,14 @@ table tfoot td {
     cursor: pointer;
   }
 
+  /* The desktop tooltips add 119px to each toggle's scrollable overflow even
+     while transparent. Touch controls already carry aria-labels, so do not let
+     an unavailable hover affordance widen the mobile page. */
+  .sidebar-toggle::after,
+  .mobile-nav-toggle::after {
+    display: none;
+  }
+
   .sidebar-open .side {
     transform: translateX(0);
   }
@@ -1557,6 +1610,35 @@ table tfoot td {
   background-repeat: no-repeat;
   background-size: 32px 100%, 32px 100%, 14px 100%, 14px 100%, auto;
   background-attachment: local, local, scroll, scroll, scroll;
+}
+
+/* The catalog tables are the densest in the product — ten columns for Products
+   and five for Suppliers — and at full width they still outgrow the panel, so
+   the last columns sit behind a scroll. A compact tier for `.compact` tables
+   sizes the type and gutters down one step so both fit the panel outright at
+   desktop widths: body cells step down to --text-xs, and the gutters derive
+   from the same two tokens as the base rhythm so wide and narrow screens
+   cannot drift apart.
+
+   Scoped to min-width: 861px because the narrow-screen blocks below restate
+   the cell padding, and an unscoped `table.compact td` would outrank their
+   `.panel td` selectors. th and td are tightened together because the gutter
+   is shared — the header must stay over the same columns as its cells. The
+   `.thumb` companion rule is needed because `table.compact td` would find the
+   thumb cell before the `.thumb` padding rule does. */
+@media (min-width: 861px) {
+  table.compact th,
+  table.compact td {
+    padding: calc(var(--cell-y) - 3px) calc(var(--cell-x) - 5px);
+  }
+
+  table.compact td {
+    font-size: var(--text-xs);
+  }
+
+  table.compact .thumb {
+    padding: 0 calc(var(--cell-x) - 5px);
+  }
 }
 
 @media (max-width: 860px) {

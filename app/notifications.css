@@ -1,9 +1,9 @@
 
 /* ==========================================================================
    Notifications
-   The bell sits in the espresso sidebar, so its panel is drawn on the light
-   parchment surface to stay readable outside the dark field. Severity reuses the
-   existing badge colours rather than introducing new ones.
+   The bell sits in the espresso sidebar and opens the standalone notifications
+   page, so it needs no panel chrome of its own. Severity reuses the existing
+   badge colours rather than introducing new ones.
    ========================================================================== */
 
 .notif {
@@ -23,6 +23,7 @@
   background: transparent;
   color: var(--app-sidebar-ink);
   cursor: pointer;
+  text-decoration: none;
 }
 
 .notif-toggle:hover {
@@ -42,76 +43,6 @@
   font-weight: var(--weight-bold);
   line-height: 17px;
   text-align: center;
-}
-
-.notif-panel {
-  position: absolute;
-  z-index: 55;
-  top: calc(100% + 8px);
-  left: 0;
-  display: grid;
-  width: min(340px, calc(100vw - 32px));
-  max-height: min(70dvh, 460px);
-  overflow-y: auto;
-  background: var(--app-surface);
-  border: 1px solid var(--app-line);
-  border-radius: var(--radius-md);
-  box-shadow: 0 18px 40px var(--app-shadow);
-  color: var(--app-ink);
-  animation: notif-panel-in calc(var(--motion) * 0.18s) var(--ease);
-}
-
-.notif-panel-head,
-.notif-panel-foot {
-  position: sticky;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 11px 14px;
-  background: var(--app-sunk);
-  font-size: var(--text-sm);
-}
-
-.notif-panel-head {
-  top: 0;
-  border-bottom: 1px solid var(--app-line);
-}
-
-.notif-panel-head > strong {
-  margin-inline-end: auto;
-}
-
-.notif-close {
-  display: inline-grid;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--app-ink-soft);
-  cursor: pointer;
-  transition:
-    transform calc(var(--motion) * 0.12s) var(--ease),
-    background-color calc(var(--motion) * 0.18s) var(--ease),
-    color calc(var(--motion) * 0.18s) var(--ease);
-}
-
-.notif-close:hover {
-  background: var(--app-surface);
-  color: var(--app-ink);
-}
-
-.notif-close:active {
-  transform: translateY(1px) scale(0.98);
-}
-
-.notif-panel-foot {
-  bottom: 0;
-  border-top: 1px solid var(--app-line);
 }
 
 .notif-link {
@@ -214,6 +145,14 @@
   -webkit-line-clamp: 3;
 }
 
+/* The standalone page has room for the whole log, so the dropdown's three-line
+   clamp does not apply there. */
+.notif-page .notif-item-message {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+}
+
 .notif-item-actions {
   display: flex;
   justify-content: flex-end;
@@ -255,11 +194,6 @@
   display: none;
 }
 
-@keyframes notif-panel-in {
-  from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 @keyframes notif-toast-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -278,11 +212,6 @@
     display: block;
   }
 
-  .notif-bar .notif-panel {
-    left: auto;
-    right: 0;
-  }
-
   .mobile-topbar .mobile-bar {
     position: static;
     margin-inline-start: auto;
@@ -293,8 +222,7 @@
     height: 44px;
   }
 
-  .notif-item-actions .notif-link,
-  .notif-panel-head .notif-link {
+  .notif-item-actions .notif-link {
     min-height: 44px;
     display: inline-flex;
     align-items: center;

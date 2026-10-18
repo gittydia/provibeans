@@ -36,7 +36,7 @@ function NavIcon({ children }: { children: ReactNode }) {
 export function AppShell({ sidebar, children }: { sidebar: ReactNode; children: ReactNode }) {
   const [isDesktop, setIsDesktop] = useState(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
-  const [overlay, setOverlay] = useState<"nav" | "notifications" | null>(null);
+  const [overlay, setOverlay] = useState<"nav" | null>(null);
   const sidebarToggle = useRef<HTMLButtonElement>(null);
   const mobileToggle = useRef<HTMLButtonElement>(null);
   const previousOverlay = useRef<typeof overlay>(null);
@@ -45,7 +45,7 @@ export function AppShell({ sidebar, children }: { sidebar: ReactNode; children: 
     const query = window.matchMedia(desktopQuery);
     const syncViewport = () => {
       setIsDesktop(query.matches);
-      if (query.matches) setOverlay((current) => current === "nav" ? null : current);
+      if (query.matches) setOverlay(null);
     };
 
     syncViewport();
@@ -93,7 +93,7 @@ export function AppShell({ sidebar, children }: { sidebar: ReactNode; children: 
         <button
           type="button"
           className="sidebar-scrim"
-          aria-label={overlay === "nav" ? "Close navigation" : "Close notifications"}
+          aria-label="Close navigation"
           onClick={() => setOverlay(null)}
         />
       ) : null}
@@ -116,11 +116,7 @@ export function AppShell({ sidebar, children }: { sidebar: ReactNode; children: 
           <span>Provi Beans</span>
           <ThemeButton />
           <div className="mobile-bar">
-            <NotificationBell
-              variant="bar"
-              open={overlay === "notifications"}
-              onOpenChange={(open) => setOverlay(open ? "notifications" : null)}
-            />
+            <NotificationBell variant="bar" />
           </div>
         </header>
         <div className="shell">
@@ -139,17 +135,13 @@ export function AppShell({ sidebar, children }: { sidebar: ReactNode; children: 
               }}
             >
               <NavIcon>
-                <path d="m14 6-6 6 6 6" />
+                <path d="M4 7h16M4 12h16M4 17h16" />
               </NavIcon>
             </button>
             {/* Sits in the desktop controls row beside the bell; below 861px
                 the sidebar copy is hidden and the topbar keeps the only one. */}
             <ThemeButton />
-            <NotificationBell
-              variant="sidebar"
-              open={overlay === "notifications"}
-              onOpenChange={(open) => setOverlay(open ? "notifications" : null)}
-            />
+            <NotificationBell variant="sidebar" />
             {navCollapsed ? <RailNav /> : null}
             <div className="side-scroll">
               <AppNavStateProvider collapsed={navCollapsed}>{sidebar}</AppNavStateProvider>

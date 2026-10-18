@@ -47,7 +47,7 @@ export default function LotsPage() {
                   {view.product.sku}
                   <div className="faint">{view.product.name}</div>
                 </td>
-                <td>{view.effectiveDate}</td>
+                <td className="date">{view.effectiveDate}</td>
                 <td className="num">{view.daysToExpiry}</td>
                 <td className="num">{view.onHand}</td>
                 <td className="num">{view.reserved}</td>

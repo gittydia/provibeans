@@ -25,7 +25,7 @@ export default function CatalogPage() {
           <h2>Products</h2>
           <p>{productRows.length} SKUs</p>
         </header>
-        <table>
+        <table className="compact">
           <thead>
             <tr>
               <th scope="col" className="thumb-col">Image</th>

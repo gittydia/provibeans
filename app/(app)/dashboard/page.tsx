@@ -198,7 +198,7 @@ export default function DashboardPage() {
                   <tr key={view.batch.id}>
                     <td className="code">{view.batch.code}</td>
                     <td>{view.product.sku}</td>
-                    <td>{view.effectiveDate}</td>
+                    <td className="date">{view.effectiveDate}</td>
                     <td className="num">{view.daysToExpiry}</td>
                     <td className="num">{view.available}</td>
                   </tr>
@@ -261,7 +261,7 @@ export default function DashboardPage() {
             <tr>
               <th scope="col">When</th>
               <th scope="col">Type</th>
-              <th scope="col" className="num">Qty</th>
+              <th scope="col" className="num num-center">Qty</th>
               <th scope="col">Reason</th>
               <th scope="col">Reference</th>
             </tr>
@@ -271,7 +271,7 @@ export default function DashboardPage() {
               <tr key={movement.id}>
                 <td className="faint">{movement.createdAt.slice(0, 10)}</td>
                 <td>{MOVEMENT_LABELS[movement.type]}</td>
-                <td className="num">{movement.quantity}</td>
+                <td className="num num-center">{movement.quantity}</td>
                 <td className="muted">{movement.reason ?? "—"}</td>
                 <td className="code">{movement.reference ?? "—"}</td>
               </tr>

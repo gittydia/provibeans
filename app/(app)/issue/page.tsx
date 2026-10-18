@@ -73,7 +73,7 @@ export default function IssuePage() {
                     <div className="faint">{row.product.name}</div>
                   </td>
                   <td className="code">{row.first.batchCode}</td>
-                  <td>{row.first.effectiveDate}</td>
+                  <td className="date">{row.first.effectiveDate}</td>
                   <td className="num">{row.first.daysToExpiry}</td>
                   <td className="num">{row.spread}</td>
                   <td className="num">{row.total}</td>

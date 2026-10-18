@@ -16,7 +16,7 @@ export default function SuppliersPage() {
           <h2>Suppliers</h2>
           <p>{supplierRows.length} on record</p>
         </header>
-        <table>
+        <table className="compact">
           <thead>
             <tr>
               <th scope="col">Name</th>

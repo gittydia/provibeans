@@ -46,7 +46,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         type: "NEAR_EXPIRY",
         severity: "WARNING",
         title: "Batch nearing expiry",
-        message: "Batch HN-2602-B reaches its effective date soon. Issue it first.",
+        message: "Batch HN-2602-B reaches its use-by date soon. Issue it first.",
         entityType: "batch",
         entityId: "demo-inbound",
       });

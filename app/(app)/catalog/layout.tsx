@@ -14,7 +14,7 @@ export default function CatalogLayout({ children }: { children: React.ReactNode 
         <div>
           <h1>Products &amp; suppliers</h1>
           <p>
-            Master data. {canEdit ? "Your role may edit these records." : "Your role has read-only access here."}
+            Records. {canEdit ? "Your role may edit these records." : "Your role has read-only access here."}
           </p>
         </div>
       </div>

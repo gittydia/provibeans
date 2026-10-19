@@ -409,7 +409,7 @@ export function openAlerts(state: MockState): OpenAlert[] {
   for (const view of buildBatchViews(state)) {
     if (view.isExpired && view.onHand > 0) alerts.push({ id: `expired-${view.batch.id}`, type: "EXPIRED", severity: "CRITICAL", message: `Batch ${view.batch.code} has expired and still holds ${view.onHand} unit(s).`, entityType: "batch", entityId: String(view.batch.id) });
     else if (view.isQuarantined) alerts.push({ id: `quarantine-${view.batch.id}`, type: "QUARANTINE", severity: "WARNING", message: `Batch ${view.batch.code} is quarantined: ${view.batch.quarantineReason ?? "no reason recorded"}.`, entityType: "batch", entityId: String(view.batch.id) });
-    else if (view.isNearExpiry && view.onHand > 0) alerts.push({ id: `near-${view.batch.id}`, type: "NEAR_EXPIRY", severity: "WARNING", message: `Batch ${view.batch.code} reaches its effective date in ${view.daysToExpiry} day(s).`, entityType: "batch", entityId: String(view.batch.id) });
+    else if (view.isNearExpiry && view.onHand > 0) alerts.push({ id: `near-${view.batch.id}`, type: "NEAR_EXPIRY", severity: "WARNING", message: `Batch ${view.batch.code} reaches its use-by date in ${view.daysToExpiry} day(s).`, entityType: "batch", entityId: String(view.batch.id) });
   }
   return alerts;
 }
@@ -554,7 +554,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     const plans = input.batchId
       ? fefoPlan(stateRef.current, input.productId).filter((plan) => plan.batchId === input.batchId)
       : fefoPlan(stateRef.current, input.productId);
-    if (plans.reduce((sum, plan) => sum + plan.available, 0) < input.quantity) return { error: "There is not enough issuable stock for this movement." };
+    if (plans.reduce((sum, plan) => sum + plan.available, 0) < input.quantity) return { error: "There is not enough stock ready to issue for this change." };
     commit((draft) => {
       let remaining = input.quantity;
       for (const plan of plans) {
@@ -574,8 +574,8 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     if (!batch) return { error: "Choose a valid batch.", fieldErrors: { batchId: "Invalid batch." } };
     if (!Number.isInteger(input.quantity) || input.quantity <= 0) return { error: "Enter a whole number above zero.", fieldErrors: { quantity: "Invalid quantity." } };
     const balance = balancesForBatch(stateRef.current, input.batchId);
-    if (["DAMAGE", "DISPOSE"].includes(input.type) && input.quantity > balance.onHand - balance.reserved) return { error: "That movement exceeds unreserved stock." };
-    if (["RELEASE", "CANCEL"].includes(input.type) && input.quantity > balance.reserved) return { error: "That movement exceeds reserved stock." };
+    if (["DAMAGE", "DISPOSE"].includes(input.type) && input.quantity > balance.onHand - balance.reserved) return { error: "That is more than the unreserved stock." };
+    if (["RELEASE", "CANCEL"].includes(input.type) && input.quantity > balance.reserved) return { error: "That is more than the reserved stock." };
     commit((draft) => {
       addMovement(draft, { ...input, productId: batch.productId });
       audit(draft, input.type, "batch", batch.code, null, { quantity: input.quantity });
@@ -585,13 +585,13 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
 
   const reverseMovement = useCallback((movementId: number, reason: string): FormState => {
     const original = stateRef.current.movements.find((movement) => movement.id === movementId);
-    if (!original) return { error: "Movement not found." };
-    if (stateRef.current.movements.some((movement) => movement.reversesId === movementId)) return { error: "This movement has already been reversed." };
+    if (!original) return { error: "Stock change not found." };
+    if (stateRef.current.movements.some((movement) => movement.reversesId === movementId)) return { error: "This stock change has already been reversed." };
     commit((draft) => {
-      addMovement(draft, { batchId: original.batchId, productId: original.productId, type: original.type, quantity: -original.quantity, reason: reason.trim() || `Reversal of #${movementId}`, reference: original.reference, reversesId: movementId });
+      addMovement(draft, { batchId: original.batchId, productId: original.productId, type: original.type, quantity: -original.quantity, reason: reason.trim() || `Reversal of stock change #${movementId}`, reference: original.reference, reversesId: movementId });
       audit(draft, "REVERSE", "movement", String(movementId), original, null);
     });
-    return { ok: true, message: `Movement #${movementId} reversed.` };
+    return { ok: true, message: `Stock change #${movementId} reversed.` };
   }, [addMovement, audit, commit]);
 
   const createProduct = useCallback<Store["createProduct"]>((product) => {

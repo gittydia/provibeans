@@ -92,11 +92,11 @@ function PeriodReports() {
 
           <dl className="stat-grid">
             <div className="stat">
-              <dt>Opening on hand</dt>
+              <dt>Opening stock</dt>
               <dd>{report.openingOnHand}</dd>
             </div>
             <div className="stat">
-              <dt>Closing on hand</dt>
+              <dt>Closing stock</dt>
               <dd>{report.closingOnHand}</dd>
             </div>
             <div className="stat">
@@ -106,7 +106,7 @@ function PeriodReports() {
               </dd>
             </div>
             <div className="stat">
-              <dt>Movements</dt>
+              <dt>Stock changes</dt>
               <dd>{totals.movementCount}</dd>
             </div>
           </dl>
@@ -118,7 +118,7 @@ function PeriodReports() {
 
           {totals.movementCount === 0 ? (
             <p className="empty">
-              No stock movements were recorded in this period, so every figure above is zero. The
+              No stock changes were recorded in this period, so every figure above is zero. The
               closing balance carries forward from {report.openingOnHand} units. Use ← Previous and
               Next → to move to a period that has activity.
             </p>
@@ -128,13 +128,13 @@ function PeriodReports() {
 
       <section className="panel">
         <header>
-          <h2>Movement summary</h2>
-          <p>Units recorded in this period, by movement type</p>
+          <h2>Stock change summary</h2>
+          <p>Units recorded in this period, by change type</p>
         </header>
         <table>
           <thead>
             <tr>
-              <th scope="col">Movement</th>
+                <th scope="col">Stock change</th>
               <th scope="col" className="num">Units</th>
               <th scope="col">Effect</th>
             </tr>
@@ -143,42 +143,42 @@ function PeriodReports() {
             <tr>
               <td>Receipts</td>
               <td className="num">{totals.received}</td>
-              <td className="muted">Adds to on hand</td>
+              <td className="muted">Adds to stock</td>
             </tr>
             <tr>
               <td>Issues</td>
               <td className="num">{totals.issued}</td>
-              <td className="muted">Removes from on hand</td>
+              <td className="muted">Removes from stock</td>
             </tr>
             <tr>
               <td>Returns</td>
               <td className="num">{totals.returned}</td>
-              <td className="muted">Adds to on hand</td>
+              <td className="muted">Adds to stock</td>
             </tr>
             <tr>
               <td>Damage</td>
               <td className="num">{totals.damaged}</td>
-              <td className="muted">Removes from on hand</td>
+              <td className="muted">Removes from stock</td>
             </tr>
             <tr>
               <td>Disposal</td>
               <td className="num">{totals.disposed}</td>
-              <td className="muted">Removes from on hand</td>
+              <td className="muted">Removes from stock</td>
             </tr>
             <tr>
               <td>Adjustments</td>
               <td className="num">{totals.adjusted}</td>
-              <td className="muted">Adds to on hand</td>
+              <td className="muted">Adds to stock</td>
             </tr>
             <tr>
               <td>Physical counts</td>
               <td className="num">{totals.counted}</td>
-              <td className="muted">Adds to on hand</td>
+              <td className="muted">Adds to stock</td>
             </tr>
             <tr>
               <td>Reservations made</td>
               <td className="num">{totals.reserved}</td>
-              <td className="muted">Holds stock, leaves it on hand</td>
+              <td className="muted">Holds stock, leaves it in stock</td>
             </tr>
             <tr>
               <td>Releases</td>
@@ -203,7 +203,7 @@ function PeriodReports() {
           </tbody>
           <tfoot>
             <tr>
-              <th scope="row">Net change in on hand</th>
+                <th scope="row">Net change in stock</th>
               <td className="num">{totals.netOnHand > 0 ? `+${totals.netOnHand}` : totals.netOnHand}</td>
               <td className="muted">{onHandMoved} units physically handled</td>
             </tr>
@@ -217,7 +217,7 @@ function PeriodReports() {
           <p>{report.byProduct.length} product{report.byProduct.length === 1 ? "" : "s"} moved</p>
         </header>
         {report.byProduct.length === 0 ? (
-          <p className="empty">No movements were recorded in this period.</p>
+          <p className="empty">No stock changes were recorded in this period.</p>
         ) : (
           <table>
             <thead>
@@ -255,8 +255,8 @@ function PeriodReports() {
             className="btn"
             onClick={() => downloadCsv(`provi-beans-${period.key}.csv`, [
               ["Period", period.label],
-              ["Opening on hand", report.openingOnHand],
-              ["Closing on hand", report.closingOnHand],
+              ["Opening stock", report.openingOnHand],
+              ["Closing stock", report.closingOnHand],
               [],
               ["SKU", "Product", "Received", "Issued", "Returned", "Damaged", "Disposed", "Net"],
               ...report.byProduct.map((line) => [line.sku, line.name, line.received, line.issued, line.returned, line.damaged, line.disposed, line.netOnHand]),

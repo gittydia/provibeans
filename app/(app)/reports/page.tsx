@@ -11,7 +11,7 @@ export default function ReportsPage() {
     <section className="panel">
       <header>
         <h2>Stock by batch</h2>
-        <p>Derived balances with the date that drives FEFO.</p>
+        <p>Balances, with the date that decides what to issue first.</p>
       </header>
       <table>
         <thead>
@@ -23,7 +23,7 @@ export default function ReportsPage() {
             <th scope="col">Packed</th>
             <th scope="col">Best before</th>
             <th scope="col">Expires</th>
-            <th scope="col" className="num">On hand</th>
+            <th scope="col" className="num">In stock</th>
             <th scope="col" className="num">Available</th>
           </tr>
         </thead>

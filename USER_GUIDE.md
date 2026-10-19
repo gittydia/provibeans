@@ -78,9 +78,9 @@ administrator, so you only need to enter the password and press Sign in.
 
 | Email | Role | What they can do |
 |---|---|---|
-| `admin@provibeans.ph` | Administrator | Everything, including master data and reports |
-| `staff@provibeans.ph` | Inventory staff | Receive, issue, move, quarantine stock. Master data is read-only |
-| `owner@provibeans.ph` | Owner / manager | Master data, reports and CSV export |
+| `admin@provibeans.ph` | Administrator | Everything, including records and reports |
+| `staff@provibeans.ph` | Inventory staff | Receive, issue, move, quarantine stock. Records are read-only |
+| `owner@provibeans.ph` | Owner / manager | Records, reports and CSV export |
 
 ### What the roles actually control
 
@@ -130,10 +130,10 @@ The morning-glance screen. Four figures across the top, then five panels:
 | Panel | What it tells you |
 |---|---|
 | **Alerts** | Everything that needs a human decision today |
-| **Stock by product** | A thumbnail of the pack, then on hand / reserved / available per SKU, plus a **State** badge |
-| **FEFO watchlist** | Batches approaching expiry, soonest first |
+| **Stock by product** | A thumbnail of the pack, then in stock / reserved / available per SKU, plus a **State** badge |
+| **Expiring soon** | Batches approaching their use-by date, soonest first |
 | **Blocked batches** | Quarantined, expired or disposed batches, with the reason |
-| **Recent movements** | The last few ledger entries |
+| **Recent stock changes** | The last few stock history entries |
 
 **The State badge** is derived, not typed in. It reads one of:
 
@@ -144,7 +144,7 @@ The morning-glance screen. Four figures across the top, then five panels:
 | **Low stock** | Available is at or below the low-stock level |
 | **Expired hold** | Reserved units exist on a batch that has since expired |
 
-It is always describing the **available** figure, never on-hand.
+It is always describing the **available** figure, never in-stock.
 
 ### Batches & receiving
 
@@ -163,37 +163,37 @@ batch and shown wherever the batch appears. Button: **Quarantine**.
 **Hold a batch** — takes a batch out of service in one step. Button: **Release to available**
 returns a quarantined batch to normal service.
 
-Quarantined batches drop out of the FEFO plan and out of *available*, and appear under
+Quarantined batches drop out of the issue plan and out of *available*, and appear under
 **Blocked batches** on the dashboard.
 
-### Issue & movements
+### Issue & stock changes
 
-Two tabs: **Issue stock** (`/issue`) and **Movements** (`/issue/movements`).
+Two tabs: **Issue stock** (`/issue`) and **Stock changes** (`/issue/movements`).
 
 On the **Issue stock** tab:
 
-**FEFO recommendation** — pick a product and it recommends which batch to use, ordered by
-earliest effective date (expiry, falling back to best-before, then receipt date). Expired
+**Recommended batch** — pick a product and it recommends which batch to use, ordered by
+earliest use-by date (expiry, falling back to best-before, then receipt date). Expired
 and quarantined batches are excluded from the plan entirely rather than filtered out
 afterwards, so a stale suggestion can't leak one in.
 
 **Issue stock** — pick the batch, enter quantity and a reference. Blocked if it would take
 a batch negative. Button: **Issue stock**.
 
-On the **Movements** tab:
+On the **Stock changes** tab:
 
-**Record a movement** — the general-purpose form for every other event: return, damage,
-disposal, adjustment, count. Button: **Record movement**.
+**Record a stock change** — the general-purpose form for every other event: return, damage,
+disposal, adjustment, count. Button: **Record stock change**.
 
 **Recent issues** — the last issues, each with a **Reverse** button.
 
 **Reverse** — corrections are never edits. Reversing writes an offsetting entry and keeps
-the original readable forever. There is no "edit movement" anywhere in this system, on
+the original readable forever. There is no "edit stock change" anywhere in this system, on
 purpose.
 
 ### Products & suppliers
 
-Master data, **administrator and owner only**. Three tabs: **Products** (`/catalog`),
+Records, **administrator and owner only**. Three tabs: **Products** (`/catalog`),
 **Suppliers** (`/catalog/suppliers`) and **Deliveries** (`/catalog/deliveries`).
 
 - **Products** — SKU, name, origin, species, process, roast, weight, price, low-stock
@@ -204,18 +204,18 @@ Master data, **administrator and owner only**. Three tabs: **Products** (`/catal
 ### Reports & activity
 
 **Administrator and owner only for the CSV export.** Four tabs: **Stock by batch**
-(`/reports`), **Movements** (`/reports/movements`), **Activity** (`/reports/activity`) and
+(`/reports`), **Stock changes** (`/reports/movements`), **Activity** (`/reports/activity`) and
 **Periodic reports** (`/reports/periods`).
 
-- **Stock by batch** — the position per batch with the date that drives FEFO
-- **Movements** — the full ledger with filters
+- **Stock by batch** — the position per batch with the date that decides issue order
+- **Stock changes** — the full stock history with filters
 - **Activity** — who did what, when, with before/after values
-- **CSV export** — the ledger as a file
+- **CSV export** — the stock history as a file
 - **Periodic reports** — see below
 
 ### Periodic reports
 
-**`/reports/periods`** — the same ledger summarised over **a week, a month or a year**.
+**`/reports/periods`** — the same stock history summarised over **a week, a month or a year**.
 
 Switch granularity with the **Weekly / Monthly / Yearly** chips, then step through
 periods with **← Previous** and **Next →**. The URL is shareable — it carries the
@@ -225,16 +225,16 @@ Each report shows:
 
 | Figure | Meaning |
 |---|---|
-| **Opening on hand** | Units on hand at the very start of the period |
-| **Closing on hand** | Units on hand at the end |
+| **Opening stock** | Units in stock at the very start of the period |
+| **Closing stock** | Units in stock at the end |
 | **Net change** | Closing minus opening |
-| **Movements** | How many ledger entries the period contains |
+| **Stock changes** | How many stock history entries the period contains |
 | **Reserved at close** | Holds still outstanding, with the opening figure alongside |
 
-Then a **movement summary** table breaking the period down by type — receipts, issues,
+Then a **stock change summary** table breaking the period down by type — receipts, issues,
 returns, damage, disposal, adjustments, physical counts, reservations made, releases,
 cancellations, quarantines and releases from quarantine — each with a note on whether it
-moves stock on hand or only changes what is issuable.
+moves stock or only changes what is ready to issue.
 
 Finally a **by product** table: units in, out, returned, lost, and net change per SKU.
 
@@ -245,9 +245,9 @@ the URL directly.
 
 Weeks are **ISO weeks**, running Monday to Sunday.
 
-> Reservations are deliberately reported separately from on-hand changes. Holding stock
+> Reservations are deliberately reported separately from stock changes. Holding stock
 > removes it from *available* but leaves it physically present, so counting a reservation
-> as stock leaving the building would overstate the movement.
+> as stock leaving the building would overstate the change.
 
 ### Accounts
 
@@ -281,9 +281,9 @@ The batch appears as `ACTIVE` and its quantity immediately increases *available*
 
 ### Issue stock
 
-1. **Issue & movements → Issue stock**
-2. Pick the product. Read the **FEFO recommendation** — it is the batch the plan wants you
-   to use, and it tells you why (earliest effective date)
+1. **Issue & stock changes → Issue stock**
+2. Pick the product. Read the **Recommended batch** — it is the batch the plan wants you
+   to use, and it tells you why (earliest use-by date)
 3. If the plan is right, use it. If not, you may pick another active, unexpired batch
 4. Enter quantity and a reference
 5. **Issue stock**
@@ -293,7 +293,7 @@ Overselling is refused — you cannot issue more than the batch holds.
 ### Hold a batch
 
 **Batches & receiving → Quarantine**, give a reason, press **Quarantine**. The batch drops out
-of both the FEFO plan and *available*, and shows under **Blocked batches** on the dashboard.
+of both the issue plan and *available*, and shows under **Blocked batches** on the dashboard.
 
 Press **Release to available** on the same screen to undo it.
 
@@ -309,8 +309,8 @@ Alert types: `LOW_STOCK`, `REORDER`, `NEAR_EXPIRY`, `EXPIRED`, `QUARANTINE`,
 
 ### Correct a mistake
 
-Never edit. Find the movement, **Reverse** it, and give the reason. The original stays in
-the ledger and the audit log keeps both entries.
+Never edit. Find the stock change, **Reverse** it, and give the reason. The original stays in
+the stock history and the audit log keeps both entries.
 
 ### Create a sign-in account
 
@@ -329,15 +329,15 @@ The account can sign in immediately. To block someone, use **Deactivate** on the
 ### Stock is derived, never stored as a total
 
 There is no "quantity: 259" column anywhere. Every figure is computed by folding the
-append-only `stock_movements` ledger:
+append-only `stock_movements` history:
 
 | Figure | Means |
 |---|---|
-| **On hand** | Physical units present, whether or not they may be issued |
+| **In stock** | Physical units present, whether or not they may be issued |
 | **Reserved** | Held by a `RESERVE` movement, not yet released |
-| **Available** | On hand minus reserved, counting only active, unexpired, unquarantined batches |
+| **Available** | In stock minus reserved, counting only active, unexpired, unquarantined batches |
 
-A displayed total therefore **cannot drift** from the movements behind it, because it is
+A displayed total therefore **cannot drift** from the stock changes behind it, because it is
 derived from them on every read.
 
 ### The movement types
@@ -345,18 +345,18 @@ derived from them on every read.
 `RECEIPT` · `ISSUE` · `RESERVE` · `RELEASE` · `CANCEL` · `RETURN` · `DAMAGE` ·
 `QUARANTINE` · `UNQUARANTINE` · `DISPOSE` · `ADJUSTMENT` · `COUNT`
 
-Reserving takes a unit out of *available* but leaves it in *on hand*. Issuing takes it out
-of *on hand*. That is why "reserved" is a separate number and not a fudge.
+Reserving takes a unit out of *available* but leaves it in *in stock*. Issuing takes it out
+of *in stock*. That is why "reserved" is a separate number and not a fudge.
 
-### FEFO
+### How the recommended batch works
 
-When issuing without naming a batch, the system recommends by **effective date**:
+When issuing without naming a batch, the system recommends by **use-by date**:
 `expiryDate` → `bestBeforeDate` → `receivedAt`, earliest first. Expired and quarantined
 batches are excluded from the plan itself, not filtered out afterwards.
 
 ### Batch status
 
-`ACTIVE` → issuable · `QUARANTINE` → blocked, with a reason · `DEPLETED` → zero
+`ACTIVE` → ready to issue · `QUARANTINE` → blocked, with a reason · `DEPLETED` → zero
 available · `DISPOSED` → written off
 
 ### Dates are checked twice
@@ -373,7 +373,7 @@ out end-to-end e-commerce and online payment processing. It is therefore not bui
 reachable: there is no cart, no checkout, and no public ordering route.
 
 Holding stock is a different thing and is **in** scope. Reservations are driven from
-**Issue & movements → Movements** with the `RESERVE`, `RELEASE` and `CANCEL` movement
+**Issue & stock changes → Stock changes** with the `RESERVE`, `RELEASE` and `CANCEL` movement
 types, and the reserved figure appears on **Batches & receiving** and the dashboard.
 
 `npm run verify:frontend` fails the build if `app/cart`, `app/(app)/requests` or

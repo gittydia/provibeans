@@ -107,7 +107,7 @@ export default function CatalogPage() {
           </tbody>
         </table>
         <p className="panel-body muted">
-          Deactivating keeps a product&apos;s batches and movement history. It only stops the product being
+          Deactivating keeps a product&apos;s batches and stock history. It only stops the product being
           received or issued.
         </p>
       </section>

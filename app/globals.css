@@ -82,6 +82,21 @@ body {
   overflow-x: clip;
 }
 
+/* Hidden bar, working scroll. The document gutter depends on how many CSS
+   pixels browser and OS scaling hand the viewport, so on classic-scrollbar
+   machines it appears at some display scales and not others. In-app scrollers
+   are handled the same way in app.css. */
+html,
+body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+}
+
 img {
   max-width: 100%;
   height: auto;

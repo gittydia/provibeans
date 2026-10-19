@@ -9,7 +9,7 @@ export default function ReportsLayout({ children }: { children: React.ReactNode 
         <div>
           <h1>Reports &amp; activity</h1>
           <p>
-            The movement ledger is append-only. Corrections are recorded as reversals, so the history of what
+            The stock history is append-only. Corrections are recorded as reversals, so the history of what
             happened always stays readable.
           </p>
         </div>
@@ -19,7 +19,7 @@ export default function ReportsLayout({ children }: { children: React.ReactNode 
         ariaLabel="Reports and activity"
         items={[
           { href: "/reports", label: "Stock by batch" },
-          { href: "/reports/movements", label: "Movements" },
+          { href: "/reports/movements", label: "Stock changes" },
           { href: "/reports/activity", label: "Activity" },
           { href: "/reports/periods", label: "Periodic reports" },
         ]}

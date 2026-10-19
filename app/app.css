@@ -247,6 +247,24 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* The in-app scrollers hide their bars like the page does: the rail nav, the
+   wide-table panels, the dialog body and the segmented control. Only the
+   gutter and thumb disappear; the scrolling is unchanged. */
+.side-scroll,
+.panel,
+.ui-dialog-body,
+.segments {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.side-scroll::-webkit-scrollbar,
+.panel::-webkit-scrollbar,
+.ui-dialog-body::-webkit-scrollbar,
+.segments::-webkit-scrollbar {
+  display: none;
+}
+
 .sidebar-toggle,
 .mobile-nav-toggle,
 .sidebar-scrim {
@@ -1023,7 +1041,6 @@ textarea[aria-invalid="true"] {
   padding: 4px;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
-  scrollbar-width: thin;
   border-radius: 999px;
   background: var(--app-sunk);
 }

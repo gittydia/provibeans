@@ -39,7 +39,7 @@ export default function IssuePage() {
       <section className="panel">
         <header>
           <h2>Issue stock</h2>
-          <p>FEFO allocation when no batch is named.</p>
+          <p>Stock comes from the batches that expire soonest when no batch is chosen.</p>
         </header>
         <div className="panel-body">
           <IssueForm products={productOptions} batches={lotOptions} />
@@ -48,21 +48,21 @@ export default function IssuePage() {
 
       <section className="panel">
         <header>
-          <h2>FEFO recommendation</h2>
-          <p>The batch that should leave first, per product.</p>
+          <h2>Suggested batches</h2>
+          <p>The batch to issue first, for each product.</p>
         </header>
         {recommendations.length === 0 ? (
-          <p className="empty">No issuable stock. Every batch is expired, quarantined or depleted.</p>
+          <p className="empty">No stock ready to issue. Every batch has expired, is on hold, or is used up.</p>
         ) : (
           <table>
             <thead>
               <tr>
                 <th scope="col">Product</th>
                 <th scope="col">Issue first</th>
-                <th scope="col">Effective date</th>
+                <th scope="col">Use-by date</th>
                 <th scope="col" className="num">Days</th>
                 <th scope="col" className="num">Batches in play</th>
-                <th scope="col" className="num">Issuable total</th>
+                <th scope="col" className="num">Ready to issue</th>
               </tr>
             </thead>
             <tbody>

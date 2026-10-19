@@ -22,7 +22,7 @@ export default function MovementsPage() {
     <>
       <section className="panel">
         <header>
-          <h2>Record a movement</h2>
+          <h2>Record a stock change</h2>
           <p>Reserve, release, return, damage, dispose or count.</p>
         </header>
         <div className="panel-body">

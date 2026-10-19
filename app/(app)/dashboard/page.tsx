@@ -23,7 +23,7 @@ function LotStateBadge({
   if (isExpired) return <span className="badge badge-crit">Expired</span>;
   if (isQuarantined) return <span className="badge badge-warn">Quarantine</span>;
   if (isNearExpiry) return <span className="badge badge-warn">Near expiry</span>;
-  return <span className="badge badge-ok">Issuable</span>;
+  return <span className="badge badge-ok">Ready to issue</span>;
 }
 
 export default function DashboardPage() {
@@ -51,7 +51,7 @@ export default function DashboardPage() {
         <div>
           <h1>Dashboard</h1>
           <p>
-            Operational exceptions first, then stock. Every figure below is derived from the movement ledger
+            Operational exceptions first, then stock. Every figure below is derived from the stock history
             rather than stored totals.
           </p>
         </div>
@@ -61,12 +61,12 @@ export default function DashboardPage() {
         <div className="stat">
           <dt>Inventory value</dt>
           <dd>{peso(totalValue)}</dd>
-          <small>On-hand units at list price</small>
+          <small>In-stock units at list price</small>
         </div>
         <div className="stat">
           <dt>Available</dt>
           <dd>{totalAvailable}</dd>
-          <small>Issuable right now</small>
+          <small>Ready to issue right now</small>
         </div>
         <div className="stat">
           <dt>Reserved</dt>
@@ -140,7 +140,7 @@ export default function DashboardPage() {
               <th scope="col" className="thumb-col">Image</th>
               <th scope="col">SKU</th>
               <th scope="col">Product</th>
-              <th scope="col" className="num">On hand</th>
+              <th scope="col" className="num">In stock</th>
               <th scope="col" className="num">Reserved</th>
               <th scope="col" className="num">Available</th>
               <th scope="col">State</th>
@@ -199,18 +199,18 @@ export default function DashboardPage() {
       <div className="split">
         <section className="panel">
           <header>
-            <h2>FEFO watchlist</h2>
-            <p>Issuable batches ordered by earliest effective date.</p>
+            <h2>Expiring soon</h2>
+            <p>Batches ready to issue, soonest use-by date first.</p>
           </header>
           {fefoWatch.length === 0 ? (
-            <p className="empty">No issuable batches.</p>
+            <p className="empty">No batches ready to issue.</p>
           ) : (
             <table>
               <thead>
                 <tr>
                   <th scope="col">Batch</th>
                   <th scope="col">Product</th>
-                  <th scope="col">Effective date</th>
+                  <th scope="col">Use-by date</th>
                   <th scope="col" className="num">Days</th>
                   <th scope="col" className="num">Available</th>
                 </tr>
@@ -243,7 +243,7 @@ export default function DashboardPage() {
                 <tr>
                   <th scope="col">Batch</th>
                   <th scope="col">State</th>
-                  <th scope="col" className="num">On hand</th>
+                  <th scope="col" className="num">In stock</th>
                   <th scope="col" className="num">Available</th>
                 </tr>
               </thead>
@@ -272,7 +272,7 @@ export default function DashboardPage() {
 
       <section className="panel">
         <header>
-          <h2>Recent movements</h2>
+          <h2>Recent stock changes</h2>
           <p>
             Append-only. Corrections are made by reversal, never by editing history.{" "}
             <Link href="/reports">Full history →</Link>

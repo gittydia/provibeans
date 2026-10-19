@@ -7,7 +7,7 @@ function stateBadge(view: { isExpired: boolean; isQuarantined: boolean; isNearEx
   if (view.isExpired) return <span className="badge badge-crit">Expired</span>;
   if (view.isQuarantined) return <span className="badge badge-warn">Quarantine</span>;
   if (view.isNearExpiry) return <span className="badge badge-warn">Near expiry</span>;
-  return <span className="badge badge-ok">Issuable</span>;
+  return <span className="badge badge-ok">Ready to issue</span>;
 }
 
 export default function LotsPage() {
@@ -26,9 +26,9 @@ export default function LotsPage() {
           <tr>
             <th scope="col">Batch</th>
             <th scope="col">Product</th>
-            <th scope="col">Effective date</th>
+            <th scope="col">Use-by date</th>
             <th scope="col" className="num">Days</th>
-            <th scope="col" className="num">On hand</th>
+            <th scope="col" className="num">In stock</th>
             <th scope="col" className="num">Reserved</th>
             <th scope="col" className="num">Available</th>
             <th scope="col">State</th>

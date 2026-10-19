@@ -7,19 +7,19 @@ export default function IssueLayout({ children }: { children: React.ReactNode })
     <>
       <div className="page-head">
         <div>
-          <h1>Issue &amp; movements</h1>
+          <h1>Issue &amp; stock changes</h1>
           <p>
-            Leave the batch empty to let FEFO allocate across valid batches. Expired and quarantined stock is excluded
+            Leave the batch blank to draw from the batches that expire soonest. Expired and on-hold stock is excluded
             automatically and can never be issued.
           </p>
         </div>
       </div>
 
       <SectionTabs
-        ariaLabel="Issue and movements"
+          ariaLabel="Issue and stock changes"
         items={[
           { href: "/issue", label: "Issue stock" },
-          { href: "/issue/movements", label: "Movements" },
+          { href: "/issue/movements", label: "Stock changes" },
         ]}
       />
 

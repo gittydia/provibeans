@@ -4,7 +4,7 @@ import Link from "next/link";
 import { MOVEMENT_LABELS, canViewReports, downloadCsv, useMockStore, type MovementType } from "@/lib/mock-store";
 
 const MOVEMENT_FILTERS: { value: string; label: string }[] = [
-  { value: "", label: "All movement types" },
+  { value: "", label: "All change types" },
   { value: "RECEIPT", label: "Receipts" },
   { value: "ISSUE", label: "Issues" },
   { value: "RESERVE", label: "Reservations" },
@@ -41,13 +41,13 @@ export default function MovementHistoryPage() {
   return (
     <section className="panel">
       <header>
-        <h2>Movement history</h2>
+          <h2>Stock history</h2>
         <p>
           {movementRows.length} entr{movementRows.length === 1 ? "y" : "ies"}
           {canViewReports(user.role) ? (
             <>
               {" · "}
-              <button type="button" className="notif-link" onClick={() => downloadCsv("provi-beans-movements.csv", [
+              <button type="button" className="notif-link" onClick={() => downloadCsv("provi-beans-stock-changes.csv", [
                 ["When", "Type", "Batch", "SKU", "Quantity", "Reason", "Reference", "Reverses"],
                 ...movementRows.map(({ movement, batchCode, productSku }) => [movement.createdAt, MOVEMENT_LABELS[movement.type], batchCode, productSku, movement.quantity, movement.reason, movement.reference, movement.reversesId]),
               ])}>
@@ -61,7 +61,7 @@ export default function MovementHistoryPage() {
       <form className="panel-body" method="get">
         <div className="form-grid">
           <label className="field" htmlFor="type">
-            <span>Movement type</span>
+              <span>Change type</span>
             <select id="type" name="type" defaultValue={filters.type}>
               {MOVEMENT_FILTERS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -109,7 +109,7 @@ export default function MovementHistoryPage() {
           {movementRows.length === 0 ? (
             <tr>
               <td colSpan={8}>
-                <p className="empty">No movements match those filters.</p>
+                <p className="empty">No stock changes match those filters.</p>
               </td>
             </tr>
           ) : (

@@ -35,10 +35,10 @@ export function IssueForm({ products, batches }: { products: Option[]; batches: 
           <Field
             label="Batch"
             name="batchId"
-            hint="Leave empty to let FEFO choose the earliest valid batch."
+            hint="Leave blank to use the batch that expires soonest."
           >
             <select>
-              <option value="">FEFO — recommended automatically</option>
+              <option value="">Soonest expiry first — recommended</option>
               {batches
                 .filter((batch) => batch.issuable && batch.available > 0)
                 .map((batch) => (
@@ -81,7 +81,7 @@ export function AdjustForm({ batches }: { batches: LotOption[] }) {
       quantity: Number(formData.get("quantity")),
       reason: String(formData.get("reason") ?? ""),
       reference: String(formData.get("reference") || "") || null,
-    })} submitLabel="Record movement">
+    })}       submitLabel="Record stock change">
       {(state) => (
         <div className="form-grid">
           <Field label="Batch" name="batchId" error={state.fieldErrors?.batchId}>
@@ -94,7 +94,7 @@ export function AdjustForm({ batches }: { batches: LotOption[] }) {
             </select>
           </Field>
 
-          <Field label="Movement" name="type">
+          <Field label="Stock change" name="type">
             <select>
               {MOVEMENTS.map((movement) => (
                 <option key={movement.value} value={movement.value}>

@@ -26,7 +26,7 @@ export default function QuarantinePage() {
                   <p className="faint row-note">
                     {view.batch.code}
                     <br />
-                    {view.onHand} on hand
+                    {view.onHand} in stock
                   </p>
                 </div>
                 <div>
@@ -47,7 +47,7 @@ export default function QuarantinePage() {
         </header>
         <div className="panel-body">
           {views.filter((view) => !view.isQuarantined && view.batch.status === "ACTIVE").length === 0 ? (
-            <p className="empty">No issuable batches to hold.</p>
+            <p className="empty">No batches ready to hold.</p>
           ) : (
             <div className="split">
               {views

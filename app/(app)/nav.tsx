@@ -8,7 +8,7 @@ import { canManageAccounts, canViewReports, useMockStore } from "@/lib/mock-stor
 const links = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
   { href: "/batches", label: "Batches & receiving", icon: "batches" },
-  { href: "/issue", label: "Issue & movements", icon: "issue" },
+  { href: "/issue", label: "Issue & stock changes", icon: "issue" },
   { href: "/catalog", label: "Products & suppliers", icon: "catalog" },
   { href: "/reports", label: "Reports & activity", icon: "reports" },
   { href: "/accounts", label: "Accounts", icon: "accounts" },

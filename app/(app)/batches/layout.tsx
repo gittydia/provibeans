@@ -9,8 +9,8 @@ export default function BatchesLayout({ children }: { children: React.ReactNode 
         <div>
           <h1>Batches &amp; receiving</h1>
           <p>
-            Every batch carries its own dates. Receiving writes a receipt movement rather than editing a stored
-            total, so the ledger stays the single source of truth.
+            Every batch carries its own dates. Receiving records stock as it arrives rather than editing a stored
+            total, so the stock history stays the single source of truth.
           </p>
         </div>
       </div>

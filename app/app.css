@@ -605,9 +605,14 @@
   padding: 16px;
 }
 
+/* The minimum is the width a column needs to hold the widest table a split panel
+   contains, so a side-by-side pair only forms while each panel can show its own
+   table without a sideways scroll. Narrower than that the pair stacks and each
+   panel takes the full width; 340px let a column exist that was already too
+   narrow for the table inside it. */
 .split {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
   gap: 22px;
   align-items: start;
 }
@@ -647,7 +652,6 @@ th {
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--app-ink-faint);
-  white-space: nowrap;
 }
 
 td {
@@ -718,6 +722,17 @@ tbody tr.row-focus:hover {
 .badge-crit { background: var(--app-badge-crit-bg); color: var(--app-crit); border-color: var(--app-badge-crit-line); }
 .badge-info { background: var(--app-badge-info-bg); color: var(--app-info); border-color: var(--app-badge-info-line); }
 .badge-mute { background: var(--app-badge-mute-bg); color: var(--app-ink-soft); border-color: var(--app-badge-mute-line); }
+
+/* A cell carries `overflow-wrap: anywhere` so its prose can yield; a lot of a
+   status is not prose, so it wraps between words but never inside one. Applies
+   to the badge and the button alike, else a squeezed column splits "expired
+   hold" or "deactivate" down the middle. The stacked layout below turns the
+   same allowance on for its own reasons. */
+.panel td .badge,
+.panel .btn {
+  white-space: normal;
+  overflow-wrap: normal;
+}
 
 .form-grid {
   display: grid;
@@ -1634,23 +1649,22 @@ table tfoot td {
    would otherwise overflow rather than adapt.
    ========================================================================== */
 
-/* Wide data tables are clipped by the panel, so on a narrow screen the extra
-   columns would be unreachable. Letting the panel scroll while the table keeps
-   its natural width makes every column reachable without touching 16 call
-   sites.
+/* The table fits its panel and wraps its own text, so no column is cut off at a
+   desktop width. The width is `100%`, not `max-content`: a table sized to its
+   content is as wide as its widest value per column and overflows the panel,
+   which is what left the last column sitting behind a scroll. Under
+   `table-layout: auto` a `100%` table instead honours the width it is given and
+   only grows past it when a cell's intrinsic minimum demands it.
 
-   Scroll container must be .panel, NOT the table: an element sized
-   `max-content` with its own `overflow-x` is exactly as wide as its content,
-   so it overflows its own scroll box instead of scrolling, and its min-content
-   propagates up and stretches the grid track.
+   `overflow-wrap: anywhere` on the cells is what keeps that minimum near one
+   character, so no single long value — a reason, an address, a batch code — sets
+   the width of its column for the whole table.
 
-   The table sizes to its content and is then filled out to the panel width, so
-   a column is only as wide as its widest value. `overflow-wrap: anywhere` on
-   cells is what keeps that true — `break-word` would leave one long reason or
-   address setting the width of its column for the whole table. */
+   The scroll container stays .panel, NOT the table: when a cell genuinely cannot
+   shrink (a single-word badge), the panel scrolls the remainder rather than the
+   table overflowing its own box and stretching the grid track. */
 .panel table {
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
 }
 
 /* The scroll hint has to live on the panel, because `background-attachment`
@@ -1939,6 +1953,32 @@ table tfoot td {
 @media (max-width: 420px) {
   .stat-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The band between the stacked layout and the full desktop table. A column here
+   is only as wide as its longest unbreakable run - a header word, a status badge
+   or a batch code - and a dense table sums to more than the panel has, so the
+   type steps down and the gutters tighten to keep the table whole rather than
+   letting a sideways scroll back in. The lower bound is the stacked layout's own
+   breakpoint: below it the rows become labelled cards and must not change. */
+@media (min-width: 861px) and (max-width: 1023px) {
+  :root {
+    --cell-x: 6px;
+  }
+
+  .panel table {
+    font-size: var(--text-2xs);
+  }
+
+  th,
+  .code,
+  .badge {
+    font-size: calc(var(--text-2xs) - 1px);
+  }
+
+  th {
+    letter-spacing: var(--tracking-wide);
   }
 }
 

@@ -17,6 +17,19 @@ an impression. It scored the pre-fix tree at **36/44** and the fixed tree at **4
 > strip under the page head on each section. The audit below, its measurements and its screenshots
 > remain the pre-tab evidence; the layout standards it established are unchanged and still enforced.
 
+> **Update — tables fit without a sideways scroll.** Tables are no longer sized to `max-content`. Each
+> fills its panel (`width: 100%`) and wraps, so every column is visible without scrolling on a desktop
+> or laptop; `th` no longer forces `white-space: nowrap`. A `.badge` or `.btn` inside a cell still wraps
+> only between words (`overflow-wrap: normal`), so a squeezed column cannot split "expired hold" or
+> "deactivate" down the middle. Two follow-on rules hold this at the narrow end: a `.split` pair forms
+> only while each panel is wide enough for its own table (`minmax(min(420px, 100%), 1fr)`, formerly
+> 340px), and the 861–1023px band — above the stacked layout, below the full desktop table — steps the
+> table type down (`--text-2xs`, with headers, badges and codes one px smaller) and tightens `--cell-x`
+> to 6px, rather than letting the sideways scroll back in. Measured over 14 routes × 11 widths: no table
+> overflowed at 861, 900, 950, 1000, 1024, 1100, 1152, 1280, 1366, 1440 or 1920px, against a **+435px**
+> worst case before; `/reports` at 861px went **+149px → 0**. The band pays for that in heavier wrapping,
+> including mid-identifier breaks such as `HN-2601-A`. `verify:layout` reports **98/98**.
+
 ---
 
 ## 1. Initial Audit
@@ -249,10 +262,11 @@ the five in `app/cart/`. Colour is not layout, and the cart is a 404 by default 
 |---|---|
 | Content width | `max-width: var(--content-limit)` (1500px), centred, full width below it |
 | Gutters | `--gutter` `clamp(18px, 3vw, 36px)`; `--gutter-narrow` 14px ≤860px |
-| Table cell box | `--cell-x` 12px × `--cell-y` 10px, shared by `th` and `td`; responsive steps derived by `calc()` |
+| Table cell box | `--cell-x` 12px × `--cell-y` 10px, shared by `th` and `td`; responsive steps derived by `calc()`; `--cell-x` 6px in the 861–1023px band |
 | Table vertical alignment | `top` for multi-line prose, `middle` for figures, codes, badges, buttons, thumbnails |
 | Table horizontal alignment | Every `th` and `td` centres, figures included; `--cell-x` gutter unchanged |
-| Table width | `max-content` + `min-width: 100%`, bounded by `overflow-wrap: anywhere` on cells |
+| Table width | `width: 100%` inside the panel — it fills and wraps, so a desktop or laptop never scrolls sideways; bounded by `overflow-wrap: anywhere` on cells |
+| Split panels | Side by side only while each column can hold its own table (`minmax(min(420px, 100%), 1fr)`); narrower, the pair stacks to full width |
 | Horizontal overflow | Scoped to `.panel` only. Never global |
 | Vertical alignment in flex rows | `align-items: end` for headers with actions |
 | Form fields | `align-content: start`; the grid item stretches, its contents do not |
@@ -276,6 +290,11 @@ the five in `app/cart/`. Colour is not layout, and the cart is a 404 by default 
 
 Page-level horizontal scrolling was already absent at every viewport and still is — the fix was to
 repair the *causes* rather than to rely on the global clip.
+
+The **861–1023px band** is the one width range with no viewport of its own in the suite. It sits above
+the stacked layout and below the full desktop table, where a column can no longer be as wide as its
+longest unbreakable run, so the table type steps down and the gutters tighten rather than the table
+scrolling. It wraps more heavily as a result, and a long identifier can break across two lines.
 
 ---
 
@@ -450,6 +469,7 @@ Accepted deliberately, with reasons.
 | Grid spacing | 22px gap inside a 16px-padded panel body | 16px inside a panel body, 22px between panels | Code review; `.panel-body .split` rule |
 | Container consistency | **1616px** at 1920px, no maximum | **≤1500px**, centred | `verify:layout` content-limiter check (the DESIGN.md §4 contract) |
 | Content overflow | Long values could inflate a column; `.panel` had conflicting overflow rules | `overflow-wrap: anywhere`; one overflow strategy; hint on the real scroller | `verify:layout` no-leak + containment checks |
+| Desktop table scroll | Tables scrolled sideways below ~1366px, worst **+435px** | Every column visible with **no sideways scroll** at ≥861px | Measured sweep, 14 routes × 11 widths: no table overflow at ≥861px; `verify:layout` 98/98 |
 | Mobile responsiveness | Badges became full-width bars below 860px | Badges keep intrinsic width | before/after screenshots at 375px |
 | Tablet responsiveness | No breakpoint defect found | No regression | `verify:layout` at 768px and 1024px |
 | Desktop responsiveness | Content stretched to 1616px | Capped at 1500px and centred | `verify:layout` at 1440px and 1920px |

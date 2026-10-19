@@ -2,6 +2,39 @@
 
 import { useMockStore } from "@/lib/mock-store";
 
+function humanizeKey(key: string): string {
+  const spaced = key
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .trim();
+  if (!spaced) return key;
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1).toLowerCase();
+}
+
+function humanizeValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  return JSON.stringify(value);
+}
+
+function formatChange(raw: string | null): string {
+  if (!raw) return "—";
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return raw;
+  }
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    const parts = Object.entries(parsed as Record<string, unknown>).map(
+      ([key, value]) => `${humanizeKey(key)}: ${humanizeValue(value)}`,
+    );
+    return parts.length > 0 ? parts.join(", ") : "—";
+  }
+  return humanizeValue(parsed);
+}
+
 export default function ActivityLogPage() {
   const { state, user } = useMockStore();
   if (!user) return null;
@@ -38,7 +71,7 @@ export default function ActivityLogPage() {
                   {entry.entityId ? ` ${entry.entityId}` : ""}
                 </td>
                 <td className="code">{entry.entityId ?? "—"}</td>
-                <td className="faint">{entry.after ?? entry.before ?? "—"}</td>
+                <td className="faint">{formatChange(entry.after ?? entry.before)}</td>
               </tr>
             ))}
           </tbody>

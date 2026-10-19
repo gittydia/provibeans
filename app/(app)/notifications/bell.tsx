@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { requestRowFocus } from "@/lib/row-focus";
 import { SEVERITY_CLASS } from "./shared";
 import { useNotifications } from "./store";
 
@@ -9,7 +10,7 @@ import { useNotifications } from "./store";
    Toasts stay here because they are transient and belong to whatever screen
    raised them, not to the page they would have to be dismissed from. */
 export function NotificationBell({ variant }: { variant: "sidebar" | "bar" }) {
-  const { unreadCount, toasts, dismissToast } = useNotifications();
+  const { unreadCount, toasts, dismissToast, markRead } = useNotifications();
 
   return (
     <div className={`notif notif-${variant}`}>
@@ -36,15 +37,35 @@ export function NotificationBell({ variant }: { variant: "sidebar" | "bar" }) {
       </Link>
 
       <div className="notif-toasts" role="status" aria-live="polite">
-        {toasts.map((toast) => (
-          <div key={toast.id} className={`notif-toast ${SEVERITY_CLASS[toast.severity] ?? ""}`}>
-            <span className="notif-item-title">{toast.title}</span>
-            <span className="notif-item-message">{toast.message}</span>
-            <button type="button" className="notif-link" onClick={() => dismissToast(toast.id)}>
-              Dismiss
-            </button>
-          </div>
-        ))}
+        {toasts.map((toast) => {
+          const target = toast.target;
+          return (
+            <div key={toast.id} className={`notif-toast ${SEVERITY_CLASS[toast.severity] ?? ""}`}>
+              {target ? (
+                <Link
+                  href={target.href}
+                  className="notif-item-link"
+                  onClick={() => {
+                    requestRowFocus(target.href);
+                    void markRead(toast.id);
+                  }}
+                >
+                  <span className="notif-item-title">{toast.title}</span>
+                  <span className="notif-item-message">{toast.message}</span>
+                  <span className="notif-item-go">Open {target.label}</span>
+                </Link>
+              ) : (
+                <>
+                  <span className="notif-item-title">{toast.title}</span>
+                  <span className="notif-item-message">{toast.message}</span>
+                </>
+              )}
+              <button type="button" className="notif-link" onClick={() => dismissToast(toast.id)}>
+                Dismiss
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

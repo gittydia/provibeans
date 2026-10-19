@@ -73,8 +73,10 @@ had none. Counts below refer to the **15 live tables**.
    `reason` value set its column's width for the whole table. Fixed with `overflow-wrap: anywhere`.
 3. **Headers aligned with data cells?** Yes, before and after — this was never broken. Worth stating,
    because it is the check most likely to be assumed wrong.
-4. **Row heights and padding consistent?** Padding was not (9 vs 10). Row heights were set by the
-   tallest cell, including a 76px thumbnail that was adding 12px of dead padding to every product row.
+4. **Row heights and padding consistent?** Padding was not (9 vs 10), and a 76px thumbnail was adding
+   12px of dead padding to every product row; both are now one `--cell-x` / `--cell-y` pair for `th` and
+   `td` alike. Row heights were left to the tallest cell — which in the product tables meant the
+   thumbnail's own picture, the defect recorded under `.thumb img` below.
 5. **Cards in a grid aligned?** Yes. `.split` already sets `align-items: start`.
 6. **Action buttons aligned in rows?** There are no action buttons inside tables. The request action
    group sits in its own `.request-actions` block, already consistent.
@@ -161,6 +163,11 @@ grid track, so an ultrawide display gets balanced gutters instead of 1848px-wide
 - `.thumb` / `.thumb-col` widened 56px → 64px so the image keeps the **same 12px gutter** as every
   other column, and the cell's vertical padding dropped to 0 — the image centres itself with
   `vertical-align: middle` instead, which removed 12px of dead height from every product row.
+- `.thumb img` is a fixed **40 × 76px** box with `object-fit: contain`, not `height: auto`. The artworks
+  are 48×91, 48×77 and 48×80, so an intrinsic height made each product row exactly as tall as its own
+  picture (76.83 / 65.16 / 67.16px). 75.83px is the tallest of them at 40px wide, so a 76px box holds
+  every picture at the scale it already had, `contain` centres the shorter two instead of stretching
+  them, and all product rows now share one height (77px).
 - Empty states with the correct `colSpan` added to the five tables that had none: `/dashboard`
   Stock by product (7), `/batches` All batches (8), `/catalog` Products (9) / Suppliers (5) / Supplier
   deliveries (4), `/requests` lines (6).
@@ -386,11 +393,14 @@ opening *Issue & movements* waits five seconds for a form.
 14 screenshots in `docs/layout/` (`before-*` / `after-*` × dashboard 1440, dashboard 375,
 catalog 1440, batches 1440, reports 1024, requests 768, receive-batch form, issue-stock form).
 
-**One false alarm, worth recording.** A 2× zoomed screenshot appeared to show vertical seams breaking
-the table row separators. A 1:1 native crop showed continuous lines, and geometry confirmed uniform
-76.83px row heights with identical borders on every cell: the "seams" were an artefact of the image
-being downscaled for viewing, not a defect in the page. Measuring instead of "fixing" it is why nothing
-was changed for it.
+**One false alarm and one real defect, worth separating.** A 2× zoomed screenshot appeared to show
+vertical seams breaking the table row separators. A 1:1 native crop showed continuous lines, and the
+borders are identical on every cell: those "seams" were an artefact of the image being downscaled for
+viewing, not a defect in the page — measuring rather than "fixing" is why nothing was changed for it.
+The same measurement, though, recorded "uniform 76.83px row heights" when 76.83px was only the *tallest*
+row (the others were 65.16px and 67.16px, each set by its own thumbnail's aspect ratio). That was real:
+the product rows did not share a baseline rhythm. It is fixed in `.thumb img` — a 40 × 76px box with
+`object-fit: contain` — and every product row now measures 77px.
 
 ---
 

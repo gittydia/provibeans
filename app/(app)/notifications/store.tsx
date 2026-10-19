@@ -2,18 +2,22 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useMockStore, type NotificationItem } from "@/lib/mock-store";
+import { notificationTarget, type NotificationTarget } from "@/lib/notification-links";
 
 export type { NotificationItem };
 
+/* The destination is resolved once, here, where the whole state is in scope, so
+   the page and the toast cannot disagree about where a notification leads. */
 export type NotificationToast = {
   id: number;
   title: string;
   message: string;
   severity: string;
+  target: NotificationTarget | null;
 };
 
 type NotificationsStore = {
-  items: (NotificationItem & { isRead: boolean })[];
+  items: (NotificationItem & { isRead: boolean; target: NotificationTarget | null })[];
   unreadCount: number;
   loading: boolean;
   error: string | null;
@@ -46,7 +50,15 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         entityType: "batch",
         entityId: "demo-inbound",
       });
-      setToasts([{ id: item.id, title: item.title, message: item.message, severity: item.severity }]);
+      setToasts([
+        {
+          id: item.id,
+          title: item.title,
+          message: item.message,
+          severity: item.severity,
+          target: notificationTarget(item, state),
+        },
+      ]);
     }, 6000);
     return () => window.clearTimeout(timer);
   }, [hydrated, pushNotification, state.notifications]);
@@ -58,7 +70,15 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, [toasts]);
 
   const dismissToast = useCallback((id: number) => setToasts((current) => current.filter((toast) => toast.id !== id)), []);
-  const items = useMemo(() => state.notifications.map((item) => ({ ...item, isRead: item.readAt !== null })), [state.notifications]);
+  const items = useMemo(
+    () =>
+      state.notifications.map((item) => ({
+        ...item,
+        isRead: item.readAt !== null,
+        target: notificationTarget(item, state),
+      })),
+    [state],
+  );
   const value = useMemo<NotificationsStore>(() => ({
     items,
     unreadCount: items.filter((item) => !item.isRead).length,

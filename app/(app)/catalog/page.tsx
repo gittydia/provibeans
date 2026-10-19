@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { canManageMasterData, useMockStore } from "@/lib/mock-store";
 import { productArtwork } from "@/lib/product-images";
+import { useRowFocus } from "@/lib/row-focus";
 import { ProductForm, ProductStateControl } from "./forms";
 
 function peso(value: number): string {
@@ -11,6 +12,7 @@ function peso(value: number): string {
 
 export default function CatalogPage() {
   const { state, user } = useMockStore();
+  const focus = useRowFocus();
   if (!user) return null;
   const canEdit = canManageMasterData(user.role);
   const productRows = [...state.products].sort((a, b) => a.sku.localeCompare(b.sku));
@@ -49,7 +51,11 @@ export default function CatalogPage() {
               </tr>
             ) : (
               productRows.map((product) => (
-                <tr key={product.id}>
+                <tr
+                  key={product.id}
+                  data-focus-key={product.sku}
+                  className={focus === product.sku ? "row-focus" : undefined}
+                >
                   <td className="thumb">
                     {(() => {
                       const art = productArtwork(product.sku);

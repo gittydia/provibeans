@@ -15,8 +15,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   border: 1px solid var(--app-sidebar-line);
   border-radius: var(--radius-sm);
@@ -151,6 +151,26 @@
   display: block;
   overflow: visible;
   -webkit-line-clamp: unset;
+}
+
+/* A notification that names a screen is a link to that screen. The anchor is
+   the grid so the title and message keep their own lines, and "Mark as read"
+   stays a target of its own beside it rather than a second click on the row. */
+.notif-item-link {
+  display: grid;
+  gap: 4px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.notif-item-link:hover .notif-item-title,
+.notif-item-link:focus-visible .notif-item-title {
+  text-decoration: underline;
+}
+
+.notif-item-go {
+  color: var(--app-link);
+  font-size: var(--text-sm);
 }
 
 .notif-item-actions {

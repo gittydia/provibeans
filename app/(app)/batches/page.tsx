@@ -1,6 +1,7 @@
 "use client";
 
 import { buildBatchViews, useMockStore } from "@/lib/mock-store";
+import { useRowFocus } from "@/lib/row-focus";
 
 function stateBadge(view: { isExpired: boolean; isQuarantined: boolean; isNearExpiry: boolean }) {
   if (view.isExpired) return <span className="badge badge-crit">Expired</span>;
@@ -11,6 +12,7 @@ function stateBadge(view: { isExpired: boolean; isQuarantined: boolean; isNearEx
 
 export default function LotsPage() {
   const { state } = useMockStore();
+  const focus = useRowFocus();
   const views = buildBatchViews(state);
 
   return (
@@ -41,7 +43,11 @@ export default function LotsPage() {
             </tr>
           ) : (
             views.map((view) => (
-              <tr key={view.batch.id}>
+              <tr
+                key={view.batch.id}
+                data-focus-key={view.batch.code}
+                className={focus === view.batch.code ? "row-focus" : undefined}
+              >
                 <td className="code">{view.batch.code}</td>
                 <td>
                   {view.product.sku}

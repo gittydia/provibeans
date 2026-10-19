@@ -57,7 +57,7 @@ export function AccountStateControl({ userId, email, isActive }: { userId: numbe
   const [state, setState] = useState<FormState>({});
 
   return (
-    <div className="row-form">
+    <div>
       {state.error ? (
         <span className="muted" role="alert">{state.error}</span>
       ) : state.message ? (

@@ -160,6 +160,11 @@ grid track, so an ultrawide display gets balanced gutters instead of 1848px-wide
   reason), with single-value cells centred:
   `td.num, td.code, td.thumb, td:has(> .badge), td:has(.btn) { vertical-align: middle }`.
   This is the rule the audit could not previously state.
+- `th, td { text-align: center }` — every cell centres, figures included. A header then sits over the
+  middle of the values beneath it instead of hanging off the left edge of the widest one, and a figure
+  no longer pins to the column's right edge while its header sits somewhere else. `.num` keeps
+  `font-variant-numeric: tabular-nums` and `white-space: nowrap` so digits still line up down the
+  column; the `.num-center` exception it used to need is gone.
 - `.thumb` / `.thumb-col` widened 56px → 64px so the image keeps the **same 12px gutter** as every
   other column, and the cell's vertical padding dropped to 0 — the image centres itself with
   `vertical-align: middle` instead, which removed 12px of dead height from every product row.
@@ -246,6 +251,7 @@ the five in `app/cart/`. Colour is not layout, and the cart is a 404 by default 
 | Gutters | `--gutter` `clamp(18px, 3vw, 36px)`; `--gutter-narrow` 14px ≤860px |
 | Table cell box | `--cell-x` 12px × `--cell-y` 10px, shared by `th` and `td`; responsive steps derived by `calc()` |
 | Table vertical alignment | `top` for multi-line prose, `middle` for figures, codes, badges, buttons, thumbnails |
+| Table horizontal alignment | Every `th` and `td` centres, figures included; `--cell-x` gutter unchanged |
 | Table width | `max-content` + `min-width: 100%`, bounded by `overflow-wrap: anywhere` on cells |
 | Horizontal overflow | Scoped to `.panel` only. Never global |
 | Vertical alignment in flex rows | `align-items: end` for headers with actions |
@@ -437,6 +443,7 @@ Accepted deliberately, with reasons.
 | Requirement | Before | After | Verification |
 |---|---|---|---|
 | Table column alignment | Headers over columns — already correct | Unchanged, now asserted | `verify:layout` header↔cell delta ≤1.5px on all 15 live tables × 7 viewports |
+| Table text alignment | Cells were left-aligned, with `.num` figures right-aligned behind one `.num-center` exception | Every cell centres, figures included; `.num-center` removed | `verify:layout` cell-alignment check, all 15 tables × 7 viewports |
 | Table row alignment | Badges **7.5px** off row centre; 56px inputs beside 38px in one form row | All single-value cells centred; every form control in a row shares a top edge | badge-drift check; form-top-edge check (proven to fail without the fix) |
 | Table cell padding | Headers 9px vs cells 10px; thumbnail 8px gutter | One `--cell-x` / `--cell-y` for `th` and `td`; thumbnail on the same 12px gutter | `verify:layout` gutter + vertical-rhythm checks, 45/45 |
 | Card alignment | Stat cards on two screens had different internal rhythms | All stat cards label → figure → caption | `verify:layout` equal-height + even-gap check |

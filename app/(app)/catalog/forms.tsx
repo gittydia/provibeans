@@ -30,7 +30,7 @@ export function ProductForm() {
           </Field>
 
           <Field label="Name" name="name" error={state.fieldErrors?.name}>
-            <input placeholder="Saigon Say Hi 500g" />
+            <input placeholder="SAIGON 500g" />
           </Field>
 
           <Field label="Weight (g)" name="weightGrams" error={state.fieldErrors?.weightGrams}>
@@ -83,7 +83,7 @@ export function ProductStateControl({ productId, sku, isActive }: { productId: n
   const [state, setState] = useState<FormState>({});
 
   return (
-    <div className="row-form">
+    <div>
       {state.message ? (
         <span className="muted" role="status">{state.message}</span>
       ) : null}

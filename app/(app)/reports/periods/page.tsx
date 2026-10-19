@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { canViewReports, downloadCsv, useMockStore } from "@/lib/mock-store";
 import {
   buildPeriodReport,
@@ -27,10 +29,10 @@ function parseAnchor(value: string | null): Date {
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
 }
 
-export default function PeriodReportsPage() {
-  const { state, user, hydrated } = useMockStore();
+function PeriodReports() {
+  const { state, user } = useMockStore();
+  const searchParams = useSearchParams();
   if (!user) return null;
-  const searchParams = hydrated ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const mayExport = canViewReports(user.role);
   const granularity = parseGranularity(searchParams.get("g"));
   const anchor = parseAnchor(searchParams.get("d"));
@@ -269,5 +271,13 @@ export default function PeriodReportsPage() {
         <Link href="/reports">← Back to reports and activity</Link>
       </p>
     </>
+  );
+}
+
+export default function PeriodReportsPage() {
+  return (
+    <Suspense fallback={null}>
+      <PeriodReports />
+    </Suspense>
   );
 }

@@ -61,6 +61,7 @@ const ROUTES = [
   "/reports/movements",
   "/reports/activity",
   "/reports/periods",
+  "/notifications",
   "/accounts",
 ];
 
@@ -204,20 +205,14 @@ function collect() {
       bodyAligns: [
         ...new Set(bodyRows.flatMap((row) => [...row.cells].filter(seen).map((c) => pad(c).verticalAlign))),
       ].sort(),
-      numericAligns: bodyRows
-        .flatMap((row) => [...row.cells])
-        .filter((cell) => cell.classList.contains("num") && seen(cell))
-        .map((cell) => ({
-          /* `.num-center` is the declared exception: in the table grid such a
-             cell must centre, and every other `.num` cell must stay
-             right-aligned. A stacked table is a labelled value list rather than
-             a column read, so `.num-center` applies to the grid only and every
-             stacked numeric keeps the value-right rhythm. Both halves are
-             checked, so the exception cannot silently excuse a stray
-             alignment. */
-          expected: cell.classList.contains("num-center") && !stacked ? "center" : "right",
-          actual: pad(cell).textAlign,
-        })),
+      /* Every cell - header and body, prose and figures alike - shares one
+         horizontal alignment, so a header sits over the middle of the values
+         beneath it. Checking the whole visible cell set rather than the `.num`
+         cells alone is what makes the rule non-vacuous: one stray declaration
+         on any single cell, numeric or not, fails here. */
+      cellAligns: [...headCells, ...bodyRows.flatMap((row) => [...row.cells])]
+        .filter(seen)
+        .map((cell) => ({ expected: "center", actual: pad(cell).textAlign })),
       leakedTable:
         scrollHost === null && box(table).right > document.documentElement.clientWidth + TOLERANCE,
     };
@@ -575,22 +570,26 @@ async function main() {
     mixedAlign.join(" | "),
   );
 
-  const strayNumerics = [];
+  const strayAligns = [];
   for (const m of fetches) {
     for (const table of m.tables) {
       const wrongSummary = [
         ...new Set(
-          table.numericAligns
+          table.cellAligns
             .filter(({ expected, actual }) => actual !== expected)
             .map(({ expected, actual }) => `${actual}, expected ${expected}`),
         ),
       ];
       if (wrongSummary.length > 0) {
-        strayNumerics.push(`${m.route}@${m.viewport}px ${table.caption || "table"} [${wrongSummary.join(",")}]`);
+        strayAligns.push(`${m.route}@${m.viewport}px ${table.caption || "table"} [${wrongSummary.join(",")}]`);
       }
     }
   }
-  record("numeric cells are right-aligned unless explicitly centred", strayNumerics.length === 0, strayNumerics.join(" | "));
+  record(
+    "table cells share one horizontal alignment (centred)",
+    strayAligns.length === 0,
+    strayAligns.join(" | "),
+  );
 
   const badgeDrift = fetches.flatMap((m) =>
     m.badgeRows

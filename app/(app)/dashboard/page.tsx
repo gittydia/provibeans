@@ -3,7 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { MOVEMENT_LABELS, buildBatchViews, openAlerts, productSummaries, useMockStore } from "@/lib/mock-store";
+import { notificationTarget } from "@/lib/notification-links";
 import { productArtwork } from "@/lib/product-images";
+import { requestRowFocus } from "@/lib/row-focus";
 
 function peso(value: number): string {
   return `₱${value.toLocaleString("en-PH", { maximumFractionDigits: 0 })}`;
@@ -88,22 +90,42 @@ export default function DashboardPage() {
         {alerts.length === 0 ? (
           <p className="empty">No open alerts. Stock levels, expiry dates and quarantine are all clear.</p>
         ) : (
-          alerts.slice(0, 8).map((alert) => (
-            <div className="alert-row" key={alert.id}>
-              <span
-                className={`badge ${
-                  alert.severity === "CRITICAL"
-                    ? "badge-crit"
-                    : alert.severity === "WARNING"
-                      ? "badge-warn"
-                      : "badge-info"
-                }`}
+          alerts.slice(0, 8).map((alert) => {
+            const target = notificationTarget(alert, state);
+            const row = (
+              <>
+                <span
+                  className={`badge ${
+                    alert.severity === "CRITICAL"
+                      ? "badge-crit"
+                      : alert.severity === "WARNING"
+                        ? "badge-warn"
+                        : "badge-info"
+                  }`}
+                >
+                  {alert.type.replace(/_/g, " ").toLowerCase()}
+                </span>
+                <div className="alert-row-body">
+                  <p>{alert.message}</p>
+                  {target ? <span className="alert-row-go">Open {target.label}</span> : null}
+                </div>
+              </>
+            );
+            return target ? (
+              <Link
+                key={alert.id}
+                href={target.href}
+                className="alert-row alert-row-link"
+                onClick={() => requestRowFocus(target.href)}
               >
-                {alert.type.replace(/_/g, " ").toLowerCase()}
-              </span>
-              <p>{alert.message}</p>
-            </div>
-          ))
+                {row}
+              </Link>
+            ) : (
+              <div className="alert-row" key={alert.id}>
+                {row}
+              </div>
+            );
+          })
         )}
       </section>
 
@@ -261,7 +283,7 @@ export default function DashboardPage() {
             <tr>
               <th scope="col">When</th>
               <th scope="col">Type</th>
-              <th scope="col" className="num num-center">Qty</th>
+              <th scope="col" className="num">Qty</th>
               <th scope="col">Reason</th>
               <th scope="col">Reference</th>
             </tr>
@@ -271,7 +293,7 @@ export default function DashboardPage() {
               <tr key={movement.id}>
                 <td className="faint">{movement.createdAt.slice(0, 10)}</td>
                 <td>{MOVEMENT_LABELS[movement.type]}</td>
-                <td className="num num-center">{movement.quantity}</td>
+                <td className="num">{movement.quantity}</td>
                 <td className="muted">{movement.reason ?? "—"}</td>
                 <td className="code">{movement.reference ?? "—"}</td>
               </tr>

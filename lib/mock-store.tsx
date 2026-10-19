@@ -129,7 +129,7 @@ export type NotificationItem = {
 };
 
 export type MockState = {
-  version: 2;
+  version: 3;
   currentUserId: number | null;
   users: User[];
   products: Product[];
@@ -163,7 +163,7 @@ export type BatchView = {
   isIssuable: boolean;
 };
 
-const STORAGE_KEY = "provi-beans-mock-store-v2";
+const STORAGE_KEY = "provi-beans-mock-store-v3";
 export const DEMO_PASSWORD = "ProviBeans2026";
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -218,9 +218,9 @@ function seedState(): MockState {
     { id: 3, email: "owner@provibeans.ph", name: "Rowan Provi", role: "OWNER", isActive: true },
   ];
   const products: Product[] = [
-    { id: 1, sku: "PB-HN-250", name: "Hà Nội Say Hi City Blend", originCountry: "Vietnam", originRegion: "Hanoi Province", species: "Robusta / Arabica", process: "Washed", roastLevel: "Medium", weightGrams: 250, unitPrice: 285, lowStockLevel: 24, reorderPoint: 60, nearExpiryDays: 30, isActive: true },
-    { id: 2, sku: "PB-HUE-250", name: "Huế Say Hi 60/40", originCountry: "Vietnam", originRegion: "Thừa Thiên Huế", species: "60% Robusta · 40% Arabica", process: "Washed", roastLevel: "Medium-dark", weightGrams: 250, unitPrice: 310, lowStockLevel: 24, reorderPoint: 60, nearExpiryDays: 30, isActive: true },
-    { id: 3, sku: "PB-SGN-250", name: "Saigon Say Hi 100% Robusta", originCountry: "Vietnam", originRegion: "Ho Chi Minh City", species: "Robusta", process: "Natural", roastLevel: "Dark", weightGrams: 250, unitPrice: 265, lowStockLevel: 30, reorderPoint: 80, nearExpiryDays: 30, isActive: true },
+    { id: 1, sku: "PB-HN-250", name: "HANOI Say Hi", originCountry: "Vietnam", originRegion: "Hanoi Province", species: "Robusta / Arabica", process: "Washed", roastLevel: "Medium", weightGrams: 250, unitPrice: 285, lowStockLevel: 24, reorderPoint: 60, nearExpiryDays: 30, isActive: true },
+    { id: 2, sku: "PB-HUE-250", name: "HUE Say Hi", originCountry: "Vietnam", originRegion: "Thừa Thiên Huế", species: "60% Robusta · 40% Arabica", process: "Washed", roastLevel: "Medium-dark", weightGrams: 250, unitPrice: 310, lowStockLevel: 24, reorderPoint: 60, nearExpiryDays: 30, isActive: true },
+    { id: 3, sku: "PB-SGN-250", name: "SAIGON", originCountry: "Vietnam", originRegion: "Ho Chi Minh City", species: "Robusta", process: "Natural", roastLevel: "Dark", weightGrams: 250, unitPrice: 265, lowStockLevel: 30, reorderPoint: 80, nearExpiryDays: 30, isActive: true },
   ];
   const suppliers: Supplier[] = [
     { id: 1, name: "Central Highlands Cooperative", contactName: "Nguyen Thi Lan", email: "orders@chighlands.vn", phone: "+84 263 3820 117", country: "Vietnam", address: "12 Nguyen Trai, Da Lat, Lam Dong", notes: "Primary supplier. Delivers monthly, wet-milled robusta." },
@@ -261,7 +261,7 @@ function seedState(): MockState {
     createdAt: timestampDaysAgo(ago),
   }));
   return {
-    version: 2,
+    version: 3,
     currentUserId: null,
     users,
     products,
@@ -302,7 +302,7 @@ function loadState(): MockState {
     const value = window.localStorage.getItem(STORAGE_KEY);
     if (!value) return seedState();
     const parsed: unknown = JSON.parse(value);
-    if (typeof parsed !== "object" || parsed === null || !("version" in parsed) || parsed.version !== 2) return seedState();
+    if (typeof parsed !== "object" || parsed === null || !("version" in parsed) || parsed.version !== 3) return seedState();
     return parsed as MockState;
   } catch {
     return seedState();
@@ -389,16 +389,27 @@ export function productSummaries(state: MockState) {
   });
 }
 
-export function openAlerts(state: MockState) {
-  const alerts: { id: string; type: string; severity: NotificationSeverity; message: string }[] = [];
+/* Recomputable exceptions. They carry the same entity fields a stored
+   notification does, so a dashboard row can link to the record it names. */
+export type OpenAlert = {
+  id: string;
+  type: string;
+  severity: NotificationSeverity;
+  message: string;
+  entityType: "product" | "batch";
+  entityId: string;
+};
+
+export function openAlerts(state: MockState): OpenAlert[] {
+  const alerts: OpenAlert[] = [];
   for (const summary of productSummaries(state)) {
-    if (summary.stockState === "LOW") alerts.push({ id: `low-${summary.product.id}`, type: "LOW_STOCK", severity: "CRITICAL", message: `${summary.product.sku} has ${summary.available} available, at or below its low-stock level of ${summary.product.lowStockLevel}.` });
-    else if (summary.stockState === "REORDER") alerts.push({ id: `reorder-${summary.product.id}`, type: "REORDER", severity: "WARNING", message: `${summary.product.sku} has reached its reorder point.` });
+    if (summary.stockState === "LOW") alerts.push({ id: `low-${summary.product.id}`, type: "LOW_STOCK", severity: "CRITICAL", message: `${summary.product.sku} has ${summary.available} available, at or below its low-stock level of ${summary.product.lowStockLevel}.`, entityType: "product", entityId: String(summary.product.id) });
+    else if (summary.stockState === "REORDER") alerts.push({ id: `reorder-${summary.product.id}`, type: "REORDER", severity: "WARNING", message: `${summary.product.sku} has reached its reorder point.`, entityType: "product", entityId: String(summary.product.id) });
   }
   for (const view of buildBatchViews(state)) {
-    if (view.isExpired && view.onHand > 0) alerts.push({ id: `expired-${view.batch.id}`, type: "EXPIRED", severity: "CRITICAL", message: `Batch ${view.batch.code} has expired and still holds ${view.onHand} unit(s).` });
-    else if (view.isQuarantined) alerts.push({ id: `quarantine-${view.batch.id}`, type: "QUARANTINE", severity: "WARNING", message: `Batch ${view.batch.code} is quarantined: ${view.batch.quarantineReason ?? "no reason recorded"}.` });
-    else if (view.isNearExpiry && view.onHand > 0) alerts.push({ id: `near-${view.batch.id}`, type: "NEAR_EXPIRY", severity: "WARNING", message: `Batch ${view.batch.code} reaches its effective date in ${view.daysToExpiry} day(s).` });
+    if (view.isExpired && view.onHand > 0) alerts.push({ id: `expired-${view.batch.id}`, type: "EXPIRED", severity: "CRITICAL", message: `Batch ${view.batch.code} has expired and still holds ${view.onHand} unit(s).`, entityType: "batch", entityId: String(view.batch.id) });
+    else if (view.isQuarantined) alerts.push({ id: `quarantine-${view.batch.id}`, type: "QUARANTINE", severity: "WARNING", message: `Batch ${view.batch.code} is quarantined: ${view.batch.quarantineReason ?? "no reason recorded"}.`, entityType: "batch", entityId: String(view.batch.id) });
+    else if (view.isNearExpiry && view.onHand > 0) alerts.push({ id: `near-${view.batch.id}`, type: "NEAR_EXPIRY", severity: "WARNING", message: `Batch ${view.batch.code} reaches its effective date in ${view.daysToExpiry} day(s).`, entityType: "batch", entityId: String(view.batch.id) });
   }
   return alerts;
 }

@@ -13,6 +13,15 @@ export type NotificationTarget = {
   label: string;
 };
 
+/* A dashboard alert is a notification that is recomputed instead of stored, so
+   it carries the same four fields the resolution below reads. Accepting that
+   subset is what lets an alert row and a bell entry reach the same record
+   without the alert inventing the fields it does not have. */
+export type NotificationTargetInput = Pick<
+  NotificationItem,
+  "type" | "entityType" | "entityId" | "message"
+>;
+
 /* The batch code and SKU shapes as they are written in alert text. Text is the
    fallback because the near-expiry push stores a synthetic entity id -- it is
    deliberately re-raisable across reloads -- so its message naming
@@ -22,21 +31,21 @@ const SKU = /\bPB-[A-Z]{2,4}-\d{3}\b/;
 
 /* An entity id is either the record's id as a string or, for a notification
    written by hand, the code itself. */
-function batchCodeFor(item: NotificationItem, state: MockState): string | null {
+function batchCodeFor(item: NotificationTargetInput, state: MockState): string | null {
   const batch = state.batches.find(
     (candidate) => String(candidate.id) === item.entityId || candidate.code === item.entityId,
   );
   return batch?.code ?? item.message.match(BATCH_CODE)?.[0] ?? null;
 }
 
-function skuFor(item: NotificationItem, state: MockState): string | null {
+function skuFor(item: NotificationTargetInput, state: MockState): string | null {
   const product = state.products.find(
     (candidate) => String(candidate.id) === item.entityId || candidate.sku === item.entityId,
   );
   return product?.sku ?? item.message.match(SKU)?.[0] ?? null;
 }
 
-export function notificationTarget(item: NotificationItem, state: MockState): NotificationTarget | null {
+export function notificationTarget(item: NotificationTargetInput, state: MockState): NotificationTarget | null {
   if (item.entityType === "batch") {
     const code = batchCodeFor(item, state);
     return code ? { href: `/batches?focus=${encodeURIComponent(code)}`, label: `Batch ${code}` } : null;

@@ -1,6 +1,7 @@
 # Provi Beans
 
-**New here? Read [`USER_GUIDE.md`](USER_GUIDE.md)** for the screen-by-screen guide.
+**New here? Read [`USER_GUIDE.md`](USER_GUIDE.md)** for the screen-by-screen guide, and
+[`docs/system-flow.md`](docs/system-flow.md) for how the data model and every flow work.
 This README covers development, architecture, and verification.
 
 Provi Beans is a frontend-only demonstration of a coffee inventory and stock
@@ -72,6 +73,7 @@ scripts/
 docs/ui-layout-alignment.md  layout contract and screenshot evidence
 docs/inventory-reporting.md   reports, filters, exports, and their verification
 docs/data-protection.md       sign-in, role checks, validation, sessions, backups, audit
+docs/system-flow.md           how the ledger, derivations, and every flow work end to end
 ```
 
 The application must remain frontend-only. Do not add database clients,

@@ -1,7 +1,8 @@
 "use client";
 
 import { ActionForm, Field } from "../ui/action-form";
-import { useMockStore, type MovementType } from "@/lib/mock-store";
+import { useState } from "react";
+import { useMockStore, type AdjustmentDirection, type MovementType } from "@/lib/mock-store";
 
 type Option = { id: number; label: string };
 type LotOption = Option & { available: number; issuable: boolean };
@@ -69,16 +70,23 @@ const MOVEMENTS = [
   { value: "RETURN", label: "Return stock in" },
   { value: "DAMAGE", label: "Record damage" },
   { value: "DISPOSE", label: "Dispose stock" },
-  { value: "COUNT", label: "Physical count variance" },
+  { value: "ADJUSTMENT", label: "Manual adjustment" },
+  { value: "COUNT", label: "Reconcile a physical count" },
 ];
 
 export function AdjustForm({ batches }: { batches: LotOption[] }) {
   const { adjustStock } = useMockStore();
+  const [type, setType] = useState<MovementType>("RESERVE");
+  const isAdjustment = type === "ADJUSTMENT";
+  const isCount = type === "COUNT";
   return (
     <ActionForm action={(formData) => adjustStock({
       batchId: Number(formData.get("batchId")),
-      type: String(formData.get("type")) as MovementType,
+      type,
       quantity: Number(formData.get("quantity")),
+      adjustmentDirection: isAdjustment
+        ? String(formData.get("adjustmentDirection")) as AdjustmentDirection
+        : null,
       reason: String(formData.get("reason") ?? ""),
       reference: String(formData.get("reference") || "") || null,
     })}       submitLabel="Record stock change">
@@ -95,7 +103,7 @@ export function AdjustForm({ batches }: { batches: LotOption[] }) {
           </Field>
 
           <Field label="Stock change" name="type">
-            <select>
+            <select value={type} onChange={(event) => setType(event.target.value as MovementType)}>
               {MOVEMENTS.map((movement) => (
                 <option key={movement.value} value={movement.value}>
                   {movement.label}
@@ -104,8 +112,22 @@ export function AdjustForm({ batches }: { batches: LotOption[] }) {
             </select>
           </Field>
 
-          <Field label="Quantity" name="quantity" error={state.fieldErrors?.quantity}>
-            <input type="number" min={1} step={1} defaultValue={1} />
+          {isAdjustment ? (
+            <Field label="Adjustment direction" name="adjustmentDirection" error={state.fieldErrors?.adjustmentDirection}>
+              <select defaultValue="INCREASE">
+                <option value="INCREASE">Increase stock</option>
+                <option value="DECREASE">Decrease stock</option>
+              </select>
+            </Field>
+          ) : null}
+
+          <Field
+            label={isCount ? "Counted quantity" : "Quantity"}
+            name="quantity"
+            error={state.fieldErrors?.quantity}
+            hint={isCount ? "Enter the quantity physically counted. The variance is calculated automatically." : undefined}
+          >
+            <input type="number" min={isCount ? 0 : 1} step={1} defaultValue={isCount ? 0 : 1} />
           </Field>
 
           <Field label="Reason" name="reason" error={state.fieldErrors?.reason}>

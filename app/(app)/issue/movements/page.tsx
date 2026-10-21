@@ -23,7 +23,7 @@ export default function MovementsPage() {
       <section className="panel">
         <header>
           <h2>Record a stock change</h2>
-          <p>Reserve, release, return, damage, dispose or count.</p>
+          <p>Reserve, release, return, damage, dispose, adjust or reconcile a count.</p>
         </header>
         <div className="panel-body">
           <AdjustForm batches={lotOptions} />

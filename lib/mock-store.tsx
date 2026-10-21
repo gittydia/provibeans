@@ -25,6 +25,7 @@ export type MovementType =
   | "DISPOSE"
   | "ADJUSTMENT"
   | "COUNT";
+export type AdjustmentDirection = "INCREASE" | "DECREASE";
 export type BatchStatus = "ACTIVE" | "QUARANTINE" | "DEPLETED" | "DISPOSED";
 export type NotificationSeverity = "INFO" | "WARNING" | "CRITICAL";
 
@@ -342,6 +343,29 @@ export function balancesForBatch(state: MockState, batchId: number): { onHand: n
   );
 }
 
+function projectedBalances(
+  balance: { onHand: number; reserved: number },
+  type: MovementType,
+  quantity: number,
+): { onHand: number; reserved: number } {
+  return {
+    onHand: balance.onHand + (ON_HAND_EFFECT[type] ?? 0) * quantity,
+    reserved: balance.reserved + (RESERVED_EFFECT[type] ?? 0) * quantity,
+  };
+}
+
+function balanceError(
+  balance: { onHand: number; reserved: number },
+  type: MovementType,
+  quantity: number,
+): string | null {
+  const next = projectedBalances(balance, type, quantity);
+  if (next.onHand < 0) return "This stock change would make on-hand stock negative.";
+  if (next.reserved < 0) return "This stock change would make reserved stock negative.";
+  if (next.reserved > next.onHand) return "This stock change would reserve more than the on-hand stock.";
+  return null;
+}
+
 export function effectiveDate(batch: Batch): string {
   return batch.expiryDate ?? batch.bestBeforeDate ?? batch.receivedAt.slice(0, 10);
 }
@@ -432,7 +456,7 @@ type Store = {
   quarantineLot: (batchId: number, reason: string) => FormState;
   releaseLot: (batchId: number) => FormState;
   issueStock: (input: { productId: number; quantity: number; batchId: number | null; reason: string | null; reference: string | null }) => FormState;
-  adjustStock: (input: { batchId: number; type: MovementType; quantity: number; reason: string; reference: string | null }) => FormState;
+  adjustStock: (input: { batchId: number; type: MovementType; quantity: number; adjustmentDirection: AdjustmentDirection | null; reason: string; reference: string | null }) => FormState;
   reverseMovement: (movementId: number, reason: string) => FormState;
   createProduct: (product: Omit<Product, "id" | "isActive">) => FormState;
   setProductActive: (productId: number, active: boolean) => FormState;
@@ -530,7 +554,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       const target = draft.batches.find((entry) => entry.id === batchId)!;
       target.status = "QUARANTINE";
       target.quarantineReason = reason.trim();
-      addMovement(draft, { batchId, productId: target.productId, type: "QUARANTINE", quantity: Math.max(1, balancesForBatch(draft, batchId).onHand), reason: reason.trim(), reference: null });
+      addMovement(draft, { batchId, productId: target.productId, type: "QUARANTINE", quantity: balancesForBatch(draft, batchId).onHand, reason: reason.trim(), reference: null });
       audit(draft, "QUARANTINE", "batch", target.code, { status: batch.status }, { status: target.status });
     });
     return { ok: true, message: `${batch.code} quarantined.` };
@@ -543,7 +567,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
       const target = draft.batches.find((entry) => entry.id === batchId)!;
       target.status = "ACTIVE";
       target.quarantineReason = null;
-      addMovement(draft, { batchId, productId: target.productId, type: "UNQUARANTINE", quantity: Math.max(1, balancesForBatch(draft, batchId).onHand), reason: "Released from quarantine", reference: null });
+      addMovement(draft, { batchId, productId: target.productId, type: "UNQUARANTINE", quantity: balancesForBatch(draft, batchId).onHand, reason: "Released from quarantine", reference: null });
       audit(draft, "UNQUARANTINE", "batch", target.code, { status: batch.status }, { status: target.status });
     });
     return { ok: true, message: `${batch.code} released to available stock.` };
@@ -572,23 +596,39 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   const adjustStock = useCallback<Store["adjustStock"]>((input): FormState => {
     const batch = stateRef.current.batches.find((entry) => entry.id === input.batchId);
     if (!batch) return { error: "Choose a valid batch.", fieldErrors: { batchId: "Invalid batch." } };
-    if (!Number.isInteger(input.quantity) || input.quantity <= 0) return { error: "Enter a whole number above zero.", fieldErrors: { quantity: "Invalid quantity." } };
+    if (!Number.isInteger(input.quantity) || (input.type === "COUNT" ? input.quantity < 0 : input.quantity <= 0)) return { error: input.type === "COUNT" ? "Enter a whole counted quantity of zero or more." : "Enter a whole number above zero.", fieldErrors: { quantity: "Invalid quantity." } };
     const balance = balancesForBatch(stateRef.current, input.batchId);
-    if (["DAMAGE", "DISPOSE"].includes(input.type) && input.quantity > balance.onHand - balance.reserved) return { error: "That is more than the unreserved stock." };
-    if (["RELEASE", "CANCEL"].includes(input.type) && input.quantity > balance.reserved) return { error: "That is more than the reserved stock." };
+    const view = buildBatchViews(stateRef.current).find((entry) => entry.batch.id === input.batchId);
+    if (input.type === "RESERVE" && !view?.isIssuable) return { error: "Only active, unexpired batches can be reserved." };
+    if (input.type === "ADJUSTMENT" && input.adjustmentDirection !== "INCREASE" && input.adjustmentDirection !== "DECREASE") return { error: "Choose whether this adjustment increases or decreases stock.", fieldErrors: { adjustmentDirection: "Required." } };
+    const quantity = input.type === "ADJUSTMENT"
+      ? input.adjustmentDirection === "DECREASE" ? -input.quantity : input.quantity
+      : input.type === "COUNT" ? input.quantity - balance.onHand
+      : input.quantity;
+    const error = balanceError(balance, input.type, quantity);
+    if (error) return { error };
     commit((draft) => {
-      addMovement(draft, { ...input, productId: batch.productId });
-      audit(draft, input.type, "batch", batch.code, null, { quantity: input.quantity });
+      addMovement(draft, { batchId: input.batchId, productId: batch.productId, type: input.type, quantity, reason: input.reason, reference: input.reference });
+      audit(draft, input.type, "batch", batch.code, null, input.type === "COUNT"
+        ? { countedQuantity: input.quantity, variance: quantity }
+        : { quantity, adjustmentDirection: input.type === "ADJUSTMENT" ? input.adjustmentDirection : undefined });
     });
-    return { ok: true, message: `${MOVEMENT_LABELS[input.type]} on ${batch.code}.` };
+    return { ok: true, message: input.type === "COUNT"
+      ? `${batch.code} counted at ${input.quantity}; variance ${quantity > 0 ? `+${quantity}` : quantity}.`
+      : `${MOVEMENT_LABELS[input.type]} on ${batch.code}.` };
   }, [addMovement, audit, commit]);
 
   const reverseMovement = useCallback((movementId: number, reason: string): FormState => {
     const original = stateRef.current.movements.find((movement) => movement.id === movementId);
     if (!original) return { error: "Stock change not found." };
     if (stateRef.current.movements.some((movement) => movement.reversesId === movementId)) return { error: "This stock change has already been reversed." };
+    const reversalQuantity = -original.quantity;
+    const view = buildBatchViews(stateRef.current).find((entry) => entry.batch.id === original.batchId);
+    if ((RESERVED_EFFECT[original.type] ?? 0) * reversalQuantity > 0 && !view?.isIssuable) return { error: "This reversal would reserve stock from an expired or quarantined batch." };
+    const error = balanceError(balancesForBatch(stateRef.current, original.batchId), original.type, reversalQuantity);
+    if (error) return { error: `This reversal cannot be recorded: ${error}` };
     commit((draft) => {
-      addMovement(draft, { batchId: original.batchId, productId: original.productId, type: original.type, quantity: -original.quantity, reason: reason.trim() || `Reversal of stock change #${movementId}`, reference: original.reference, reversesId: movementId });
+      addMovement(draft, { batchId: original.batchId, productId: original.productId, type: original.type, quantity: reversalQuantity, reason: reason.trim() || `Reversal of stock change #${movementId}`, reference: original.reference, reversesId: movementId });
       audit(draft, "REVERSE", "movement", String(movementId), original, null);
     });
     return { ok: true, message: `Stock change #${movementId} reversed.` };

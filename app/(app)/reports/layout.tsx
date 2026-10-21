@@ -18,7 +18,7 @@ export default function ReportsLayout({ children }: { children: React.ReactNode 
       <SectionTabs
         ariaLabel="Reports and activity"
         items={[
-          { href: "/reports", label: "Stock by batch" },
+          { href: "/reports", label: "Inventory reports" },
           { href: "/reports/movements", label: "Stock changes" },
           { href: "/reports/activity", label: "Activity" },
           { href: "/reports/periods", label: "Periodic reports" },

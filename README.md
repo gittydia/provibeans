@@ -70,6 +70,8 @@ scripts/
   verify-frontend.mjs        frontend-only architecture guard
   verify-layout.mjs          browser-based layout geometry checks
 docs/ui-layout-alignment.md  layout contract and screenshot evidence
+docs/inventory-reporting.md   reports, filters, exports, and their verification
+docs/data-protection.md       sign-in, role checks, validation, sessions, backups, audit
 ```
 
 The application must remain frontend-only. Do not add database clients,
@@ -143,5 +145,10 @@ is retained there; the executable suite protects the measurable geometry.
 - Browser-local data is demonstration state, not shared multi-user state.
 - Clearing browser storage resets locally persisted changes.
 - Demo authentication and role selection do not provide production security.
+- Passwords, sessions, and inventory data are stored as plain text in browser
+  storage, so the thirty-minute idle sign-out is a convenience lock rather than a
+  security control.
+- Backups are JSON files written and read in the browser, and they contain the
+  demo's plain-text passwords.
 - Product photography is thumbnail resolution.
 - The layout suite requires a locally installed Edge or Chrome browser.

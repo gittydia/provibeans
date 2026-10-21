@@ -132,6 +132,7 @@ export type NotificationItem = {
 export type MockState = {
   version: 3;
   currentUserId: number | null;
+  lastActivityAt: string | null;
   users: User[];
   products: Product[];
   suppliers: Supplier[];
@@ -165,6 +166,7 @@ export type BatchView = {
 };
 
 const STORAGE_KEY = "provi-beans-mock-store-v3";
+const SESSION_IDLE_MS = 30 * 60 * 1000;
 export const DEMO_PASSWORD = "ProviBeans2026";
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -264,6 +266,7 @@ function seedState(): MockState {
   return {
     version: 3,
     currentUserId: null,
+    lastActivityAt: null,
     users,
     products,
     suppliers,
@@ -452,6 +455,8 @@ type Store = {
   login: (email: string, password: string) => FormState;
   logout: () => void;
   reset: () => void;
+  exportBackup: () => void;
+  restoreBackup: (raw: string) => FormState;
   createLot: (input: Omit<Batch, "id" | "status" | "quarantineReason"> & { quantity: number }) => FormState;
   quarantineLot: (batchId: number, reason: string) => FormState;
   releaseLot: (batchId: number) => FormState;
@@ -477,7 +482,10 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   const stateRef = useRef(state);
 
   useEffect(() => {
-    const stored = loadState();
+    const loaded = loadState();
+    const stale = Boolean(loaded.currentUserId) && Date.now() - (loaded.lastActivityAt ? Date.parse(loaded.lastActivityAt) : 0) > SESSION_IDLE_MS;
+    const stored = stale ? { ...loaded, currentUserId: null, lastActivityAt: null } : loaded;
+    if (stale) saveState(stored);
     stateRef.current = stored;
     setState(stored);
     setHydrated(true);
@@ -500,6 +508,41 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     return next;
   }, []);
 
+  useEffect(() => {
+    if (!hydrated || !state.currentUserId) return;
+    let last = 0;
+    const note = () => {
+      const now = Date.now();
+      if (now - last < 60_000) return;
+      last = now;
+      commit((draft) => { draft.lastActivityAt = new Date(now).toISOString(); });
+    };
+    window.addEventListener("pointerdown", note);
+    window.addEventListener("keydown", note);
+    return () => {
+      window.removeEventListener("pointerdown", note);
+      window.removeEventListener("keydown", note);
+    };
+  }, [commit, hydrated, state.currentUserId]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const timer = window.setInterval(() => {
+      const snapshot = stateRef.current;
+      if (!snapshot.currentUserId) return;
+      const lastSeen = snapshot.lastActivityAt ? Date.parse(snapshot.lastActivityAt) : 0;
+      if (Date.now() - lastSeen <= SESSION_IDLE_MS) return;
+      const leaving = currentUser(snapshot);
+      const now = new Date().toISOString();
+      commit((draft) => {
+        draft.currentUserId = null;
+        draft.lastActivityAt = null;
+        if (leaving) draft.audit.push({ id: nextId(draft.audit), actorName: leaving.name, action: "SIGN_OUT", entity: "session", entityId: leaving.email, before: null, after: null, createdAt: now });
+      });
+    }, 30_000);
+    return () => window.clearInterval(timer);
+  }, [commit, hydrated]);
+
   const actorName = useCallback(() => currentUser(stateRef.current)?.name ?? "Demo user", []);
   const audit = useCallback((draft: MockState, action: string, entity: string, entityId: string | null, before: unknown, after: unknown) => {
     draft.audit.push({ id: nextId(draft.audit), actorName: actorName(), action, entity, entityId, before: before == null ? null : JSON.stringify(before), after: after == null ? null : JSON.stringify(after), createdAt: new Date().toISOString() });
@@ -516,16 +559,67 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     if (Object.keys(fieldErrors).length) return { fieldErrors };
     const found = stateRef.current.users.find((entry) => entry.email === normal && entry.isActive);
     if (!found || password !== (found.password ?? DEMO_PASSWORD)) return { error: "That email and password combination was not recognised." };
-    commit((draft) => { draft.currentUserId = found.id; });
+    const now = new Date().toISOString();
+    commit((draft) => {
+      draft.currentUserId = found.id;
+      draft.lastActivityAt = now;
+      draft.audit.push({ id: nextId(draft.audit), actorName: found.name, action: "SIGN_IN", entity: "session", entityId: found.email, before: null, after: null, createdAt: now });
+    });
     return { ok: true };
   }, [commit]);
 
-  const logout = useCallback(() => commit((draft) => { draft.currentUserId = null; }), [commit]);
+  const logout = useCallback(() => {
+    const leaving = currentUser(stateRef.current);
+    const now = new Date().toISOString();
+    commit((draft) => {
+      draft.currentUserId = null;
+      draft.lastActivityAt = null;
+      if (leaving) draft.audit.push({ id: nextId(draft.audit), actorName: leaving.name, action: "SIGN_OUT", entity: "session", entityId: leaving.email, before: null, after: null, createdAt: now });
+    });
+  }, [commit]);
   const reset = useCallback(() => {
     const next = seedState();
     stateRef.current = next;
     setState(next);
     saveState(next);
+  }, []);
+
+  const exportBackup = useCallback(() => {
+    const payload = JSON.stringify({ exportedAt: new Date().toISOString(), state: stateRef.current }, null, 2);
+    const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `provi-beans-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const restoreBackup = useCallback((raw: string): FormState => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return { error: "That file is not valid JSON." };
+    }
+    const candidate = parsed && typeof parsed === "object" && "state" in parsed ? (parsed as { state: unknown }).state : parsed;
+    if (!candidate || typeof candidate !== "object") return { error: "That file is not a Provi Beans backup." };
+    const shaped = candidate as Partial<MockState>;
+    const users = shaped.users;
+    if (!Array.isArray(shaped.products) || !Array.isArray(users) || !Array.isArray(shaped.batches) || !Array.isArray(shaped.movements) || !Array.isArray(shaped.audit)) {
+      return { error: "That file is not a Provi Beans backup." };
+    }
+    const signedIn = currentUser(stateRef.current);
+    const keepId = signedIn && users.some((entry) => entry.id === signedIn.id) ? signedIn.id : null;
+    const now = new Date().toISOString();
+    const next: MockState = { ...seedState(), ...shaped, currentUserId: keepId, lastActivityAt: keepId ? now : null };
+    next.audit.push({ id: nextId(next.audit), actorName: signedIn?.name ?? "Demo user", action: "RESTORE", entity: "backup", entityId: null, before: null, after: null, createdAt: now });
+    stateRef.current = next;
+    setState(next);
+    saveState(next);
+    return {
+      ok: true,
+      message: keepId ? "Backup restored." : "Backup restored. Sign in again to continue.",
+    };
   }, []);
 
   const createLot = useCallback<Store["createLot"]>((input) => {
@@ -713,16 +807,24 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
   const createSupplier = useCallback<Store["createSupplier"]>((supplier) => {
     if (!supplier.name.trim()) return { error: "A supplier name is required.", fieldErrors: { name: "Required." } };
     if (stateRef.current.suppliers.some((entry) => entry.name.toLowerCase() === supplier.name.trim().toLowerCase())) return { error: `${supplier.name} is already recorded.`, fieldErrors: { name: "Already recorded." } };
-    commit((draft) => { draft.suppliers.push({ ...supplier, id: nextId(draft.suppliers), name: supplier.name.trim() }); });
+    commit((draft) => {
+      const row = { ...supplier, id: nextId(draft.suppliers), name: supplier.name.trim() };
+      draft.suppliers.push(row);
+      audit(draft, "CREATE", "supplier", row.name, null, { contactName: row.contactName, country: row.country });
+    });
     return { ok: true, message: `${supplier.name.trim()} added.` };
-  }, [commit]);
+  }, [audit, commit]);
 
   const createDelivery = useCallback<Store["createDelivery"]>((delivery): FormState => {
     if (!stateRef.current.suppliers.some((supplier) => supplier.id === delivery.supplierId)) return { error: "Choose the supplier this delivery came from.", fieldErrors: { supplierId: "Invalid supplier." } };
     if (delivery.reference && stateRef.current.deliveries.some((entry) => entry.reference === delivery.reference)) return { error: `Reference ${delivery.reference} has already been recorded.`, fieldErrors: { reference: "Already used." } };
-    commit((draft) => { draft.deliveries.push({ ...delivery, id: nextId(draft.deliveries) }); });
+    commit((draft) => {
+      const row = { ...delivery, id: nextId(draft.deliveries) };
+      draft.deliveries.push(row);
+      audit(draft, "CREATE", "delivery", row.reference ?? String(row.id), null, { supplierId: row.supplierId });
+    });
     return { ok: true, message: delivery.reference ? `Delivery ${delivery.reference} recorded.` : "Delivery recorded." };
-  }, [commit]);
+  }, [audit, commit]);
 
   const markNotificationRead = useCallback((id: number) => commit((draft) => {
     const item = draft.notifications.find((notification) => notification.id === id);
@@ -745,6 +847,8 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     reset,
+    exportBackup,
+    restoreBackup,
     createLot,
     quarantineLot,
     releaseLot,
@@ -760,7 +864,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     markNotificationRead,
     markAllNotificationsRead,
     pushNotification,
-  }), [state, hydrated, login, logout, reset, createLot, quarantineLot, releaseLot, issueStock, adjustStock, reverseMovement, createProduct, setProductActive, createUser, setUserActive, createSupplier, createDelivery, markNotificationRead, markAllNotificationsRead, pushNotification]);
+  }), [state, hydrated, login, logout, reset, exportBackup, restoreBackup, createLot, quarantineLot, releaseLot, issueStock, adjustStock, reverseMovement, createProduct, setProductActive, createUser, setUserActive, createSupplier, createDelivery, markNotificationRead, markAllNotificationsRead, pushNotification]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

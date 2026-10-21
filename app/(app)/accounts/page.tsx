@@ -2,6 +2,7 @@
 
 import { ROLE_LABELS, canManageAccounts, useMockStore } from "@/lib/mock-store";
 import { AccountForm, AccountStateControl } from "./forms";
+import { BackupPanel } from "./backup";
 
 export default function AccountsPage() {
   const { state, user } = useMockStore();
@@ -88,6 +89,8 @@ export default function AccountsPage() {
               <AccountForm />
             </div>
           </section>
+
+          <BackupPanel />
         </>
       ) : (
         <p className="notice notice-crit" role="note">

@@ -297,8 +297,8 @@ more, and a backup panel.
 - **Create an account** — name, email, role, and an optional password. Leave the password
   blank and the account signs in with the demo password **`ProviBeans2026`**; set one and it
   signs in with that instead (at least 6 characters). New accounts work immediately.
-  The role list depends on who you are: an administrator can grant any role, while the owner
-  can grant inventory staff or owner but not administrator.
+  The role list depends on who you are: the owner can grant any role, while an administrator
+  can grant inventory staff or administrator but not owner.
 - **Deactivate** blocks sign-in and keeps the account, so **Reactivate** can bring it back.
   Both are audited.
 - **Backup and restore** — **Download backup** saves the full browser state as

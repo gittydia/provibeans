@@ -44,8 +44,8 @@ Authentication is simulated in the browser. These credentials are demo data,
 not real accounts, and no credentials are sent to a server.
 
 Administrators and owners can create more accounts from the **Accounts** screen
-(`/accounts`); owners can create staff and owner accounts, but only an administrator
-can create another administrator. A new account can have its own password, or use
+(`/accounts`); an administrator can create staff and administrator accounts, but only the
+owner can create another owner. A new account can have its own password, or use
 `ProviBeans2026` when left blank.
 
 ## Frontend-only data model

@@ -330,11 +330,11 @@ export function canManageAccounts(role: Role): boolean {
 }
 
 /**
- * An owner may run the business and manage people, but must not be able to mint an
- * administrator: that would let the owner role hand out powers it was deliberately not given.
+ * The owner is the account of last resort: an administrator runs the system and may create
+ * staff or other administrators, but must never be able to mint an owner.
  */
 export function canCreateRole(actor: Role, role: Role): boolean {
-  return !(actor === "OWNER" && role === "ADMIN");
+  return !(actor === "ADMIN" && role === "OWNER");
 }
 
 function isRole(value: string): value is Role {
@@ -778,7 +778,7 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     const name = input.name.trim();
     const email = input.email.trim().toLowerCase();
     const fieldErrors: Record<string, string> = {};
-    if (!canCreateRole(actor.role, role)) fieldErrors.role = "Only an administrator can create administrator accounts.";
+    if (!canCreateRole(actor.role, role)) fieldErrors.role = "Only an owner can create owner accounts.";
     if (!name) fieldErrors.name = "A name is required.";
     if (!email) fieldErrors.email = "An email address is required.";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fieldErrors.email = "Enter a valid email address.";

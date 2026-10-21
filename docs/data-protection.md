@@ -35,11 +35,11 @@ credentials, and the README says so; do not reuse a real password here.
 | `canManageMasterData` | Administrator, Owner | `/catalog`, `/catalog/suppliers`, `/catalog/deliveries`, catalog layout |
 | `canViewReports` | Administrator, Owner | `/reports` and every report route, navigation |
 | `canManageAccounts` | Administrator, Owner | `/accounts`, navigation |
-| `canCreateRole` | Administrator: any; Owner: staff and owner | `/accounts` role select, `createUser` |
+| `canCreateRole` | Owner: any; Administrator: staff and administrator | `/accounts` role select, `createUser` |
 
-An owner is trusted with the business but not with minting administrators: `canCreateRole`
-removes the Administrator option from the create form and `createUser` rejects a tampered
-`select` with a field error, so the restriction does not depend on the interface alone.
+The owner is the account of last resort, so an administrator cannot mint one: `canCreateRole`
+removes the Owner option from the create form for an administrator, and `createUser` rejects a
+tampered `select` with a field error, so the restriction does not depend on the interface alone.
 
 Each helper is checked twice: the navigation entry is hidden, and the page itself
 refuses with a `notice-crit` panel. Reaching the URL directly therefore shows a refusal
@@ -68,7 +68,7 @@ Every mutation validates before it writes:
 - **Suppliers** — name required and unique case-insensitively.
 - **Deliveries** — the supplier must exist and the reference must be unique when given.
 - **Accounts** — role must be valid, the signed-in role must be allowed to grant it (an
-  owner cannot create an administrator), name required, email format-checked and unique,
+  administrator cannot create an owner), name required, email format-checked and unique,
   and a supplied password must be at least six characters.
 
 Rejections return field-level errors where a field is at fault, and a form-level message

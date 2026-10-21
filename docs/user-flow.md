@@ -457,11 +457,11 @@ Do not use **Manual adjustment** for a count. Adjustment is for deliberate incre
 
 **Why it exists.** The demo needs identities, and a departing colleague should stop being able to sign in without their history disappearing.
 
-**Who.** Administrators and owners. Staff see "Only an administrator or the owner may manage accounts." Only an administrator can create another administrator; the owner's role list offers inventory staff and owner.
+**Who.** Administrators and owners. Staff see "Only an administrator or the owner may manage accounts." Only the owner can create another owner; an administrator's role list offers inventory staff and administrator.
 
 **What you see.** A table of **Name**, **Email**, **Role**, **State**, and **Action**, with a **You** badge and **Signed in** where the row is your own account. Below, **Add an account**, then the backup panel.
 
-**How to use it.** Create the account with a name, email, role, and password — leave the password blank to use `ProviBeans2026`. Choose the role deliberately: it decides reports, catalogue editing, and accounts access. The role list is limited by who you are — an owner cannot create an administrator, and the option is not offered. Deactivate a leaver rather than deleting them; the account is kept and can be switched back on.
+**How to use it.** Create the account with a name, email, role, and password — leave the password blank to use `ProviBeans2026`. Choose the role deliberately: it decides reports, catalogue editing, and accounts access. The role list is limited by who you are — an administrator cannot create an owner, and the option is not offered. Deactivate a leaver rather than deleting them; the account is kept and can be switched back on.
 
 **What to do next.** Tell the new user their password and that all three demo passwords are shared. If you deactivate someone, their existing session ends on the next idle check or when they sign out.
 

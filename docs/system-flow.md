@@ -365,9 +365,9 @@ is documented as a limitation rather than hidden.
 
 Predicates: `canViewReports`, `canManageAccounts`, `canManageMasterData` (`mock-store.tsx:320–330`).
 
-`canCreateRole(actor, role)` narrows the last row: an owner may create inventory staff and
-other owners, but never an administrator. The Accounts form drops the Administrator option
-for an owner, and `createUser` checks the same predicate so a tampered `select` is refused
+`canCreateRole(actor, role)` narrows the last row: an administrator may create inventory staff
+and other administrators, but never an owner. The Accounts form drops the Owner option for an
+administrator, and `createUser` checks the same predicate so a tampered `select` is refused
 with a field error rather than trusted.
 
 Enforcement is intentionally doubled:
@@ -720,8 +720,8 @@ backup panel.
 `createUser`:
 
 - role must be a known `Role` (guards against a tampered `select`);
-- the signed-in role must be allowed to grant that role: `canCreateRole` blocks an owner from
-  creating an administrator, mirroring the options the form offers;
+- the signed-in role must be allowed to grant that role: `canCreateRole` blocks an administrator
+  from creating an owner, mirroring the options the form offers;
 - name required; email required, regex-validated, unique after lowercasing;
 - password optional: if provided it must be at least 6 characters, otherwise the account falls back to
   `DEMO_PASSWORD`;

@@ -140,7 +140,7 @@ flowchart LR
 ```
 
 1. Open **Batches & receiving → Receive**.
-2. Fill the form: **Batch code** (unique across all stock), **Product**, **Delivery** (optional link to a supplier delivery), **Quantity**, **Received** (defaults to today), and the date fields — **Roasted**, **Packed**, **Best before**, **Expires**. Add **Notes** if something about this delivery should be remembered.
+2. Fill the form: **Batch code** (pre-filled with the next free code for that product and month, and unique across all stock), **Product**, **Delivery** (optional link to a supplier delivery), **Quantity**, **Received** (defaults to today), and the date fields — **Roasted**, **Packed**, **Best before**, **Expires**. Add **Notes** if something about this delivery should be remembered.
 3. Press **Receive batch**.
 4. The batch now exists as its own record with its own dates, and a receipt movement is in the history.
 
@@ -293,9 +293,9 @@ Do not use **Manual adjustment** for a count. Adjustment is for deliberate incre
 
 **Who.** Every signed-in role.
 
-**What you see.** A form: **Batch code** (unique across all stock), **Product**, **Delivery** (optional), **Quantity**, **Received** (defaults to today), **Roasted**, **Packed**, **Best before**, **Expires**, **Notes**, and the **Receive batch** button.
+**What you see.** A form: **Batch code** (pre-filled with the next free code for the selected product and month; unique across all stock), **Product**, **Delivery** (optional), **Quantity**, **Received** (defaults to today), **Roasted**, **Packed**, **Best before**, **Expires**, **Notes**, and the **Receive batch** button.
 
-**How to use it.** Complete the code, product, quantity, and at least the date that governs expiry. Link a delivery when the batch came from a recorded supplier delivery; the link is what makes provenance traceable later.
+**How to use it.** Check the suggested code against the paperwork and overwrite it if they differ, then complete product, quantity, and at least the date that governs expiry. Link a delivery when the batch came from a recorded supplier delivery; the link is what makes provenance traceable later.
 
 **What to do next.** Confirm the new batch in **All batches**, then check whether it cleared a **Reorder** or **Low stock** badge on the dashboard.
 
@@ -357,7 +357,7 @@ Do not use **Manual adjustment** for a count. Adjustment is for deliberate incre
 
 **Who.** Everyone may read. Only administrators and owners may add, deactivate, or reactivate. Staff see the page with a read-only notice.
 
-**What you see.** A table of **SKU**, **Name**, **Origin**, **Blend**, **Size**, **Price**, **Low / reorder**, and **Batches**, plus a **State** column for roles that may edit. Inactive products keep an **Inactive** badge. Below, **Add a product** with the note that the SKU must be unique.
+**What you see.** A table of **SKU**, **Name**, **Origin**, **Blend**, **Size**, **Price**, **Low / reorder**, and **Batches**, plus a **State** column for roles that may edit. Inactive products keep an **Inactive** badge. Below, **Add a product**, where the SKU is suggested from the name and weight and must still be unique.
 
 **How to use it.** Read the thresholds as "low stock level / reorder point". Set them deliberately: they drive the **Low stock** and **Reorder** badges and the alerts that follow. Deactivating a product stops it being received or issued but keeps its batches and history.
 
@@ -457,11 +457,11 @@ Do not use **Manual adjustment** for a count. Adjustment is for deliberate incre
 
 **Why it exists.** The demo needs identities, and a departing colleague should stop being able to sign in without their history disappearing.
 
-**Who.** Administrators and owners. Staff see "Only an administrator or the owner may manage accounts."
+**Who.** Administrators and owners. Staff see "Only an administrator or the owner may manage accounts." Only an administrator can create another administrator; the owner's role list offers inventory staff and owner.
 
 **What you see.** A table of **Name**, **Email**, **Role**, **State**, and **Action**, with a **You** badge and **Signed in** where the row is your own account. Below, **Add an account**, then the backup panel.
 
-**How to use it.** Create the account with a name, email, role, and password — leave the password blank to use `ProviBeans2026`. Choose the role deliberately: it decides reports, catalogue editing, and accounts access. Deactivate a leaver rather than deleting them; the account is kept and can be switched back on.
+**How to use it.** Create the account with a name, email, role, and password — leave the password blank to use `ProviBeans2026`. Choose the role deliberately: it decides reports, catalogue editing, and accounts access. The role list is limited by who you are — an owner cannot create an administrator, and the option is not offered. Deactivate a leaver rather than deleting them; the account is kept and can be switched back on.
 
 **What to do next.** Tell the new user their password and that all three demo passwords are shared. If you deactivate someone, their existing session ends on the next idle check or when they sign out.
 

@@ -23,10 +23,16 @@ export default function ReceiveBatchPage() {
           products={productRows.map((product) => ({
             id: product.id,
             label: `${product.sku} — ${product.name}`,
+            sku: product.sku,
+            name: product.name,
           }))}
           deliveries={deliveryRows.map((row) => ({
             id: row.delivery.id,
             label: `${row.delivery.reference ?? "Delivery #" + row.delivery.id} — ${row.supplierName}`,
+          }))}
+          batches={state.batches.map((batch) => ({
+            code: batch.code,
+            productId: batch.productId,
           }))}
         />
       </div>

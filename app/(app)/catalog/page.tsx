@@ -119,7 +119,7 @@ export default function CatalogPage() {
             <p>SKU must be unique.</p>
           </header>
           <div className="panel-body">
-            <ProductForm />
+            <ProductForm existingSkus={productRows.map((product) => product.sku)} />
           </div>
         </section>
       ) : (

@@ -86,7 +86,7 @@ export default function AccountsPage() {
               <p>New accounts can sign in immediately.</p>
             </header>
             <div className="panel-body">
-              <AccountForm />
+              <AccountForm actorRole={user.role} />
             </div>
           </section>
 

@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { ActionForm, Field } from "../ui/action-form";
-import { DEMO_PASSWORD, ROLE_LABELS, useMockStore, type FormState } from "@/lib/mock-store";
+import { canCreateRole, DEMO_PASSWORD, ROLE_LABELS, useMockStore, type FormState, type Role } from "@/lib/mock-store";
 
-export function AccountForm() {
+export function AccountForm({ actorRole }: { actorRole: Role }) {
   const { createUser } = useMockStore();
+  const roles = (Object.keys(ROLE_LABELS) as Role[]).filter((role) => canCreateRole(actorRole, role));
+
   return (
     <ActionForm
       action={(formData) =>
@@ -28,11 +30,16 @@ export function AccountForm() {
             <input type="email" placeholder="rosa@provibeans.ph" />
           </Field>
 
-          <Field label="Role" name="role">
+          <Field
+            label="Role"
+            name="role"
+            error={state.fieldErrors?.role}
+            hint={actorRole === "OWNER" ? "Administrator accounts can only be created by an administrator." : undefined}
+          >
             <select defaultValue="INVENTORY_STAFF">
-              {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
+              {roles.map((role) => (
+                <option key={role} value={role}>
+                  {ROLE_LABELS[role]}
                 </option>
               ))}
             </select>

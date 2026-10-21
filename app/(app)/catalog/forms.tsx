@@ -2,16 +2,23 @@
 
 import { useState } from "react";
 import { ActionForm, Field } from "../ui/action-form";
+import { suggestSku } from "@/lib/codes";
 import { useMockStore, type FormState } from "@/lib/mock-store";
 
 type Option = { id: number; label: string };
 
-export function ProductForm() {
+export function ProductForm({ existingSkus }: { existingSkus: string[] }) {
   const { createProduct } = useMockStore();
+  const [name, setName] = useState("");
+  const [weight, setWeight] = useState("250");
+  const [sku, setSku] = useState("");
+  const [skuEdited, setSkuEdited] = useState(false);
+  const skuValue = skuEdited ? sku : suggestSku(name, Number(weight), existingSkus);
+
   return (
     <ActionForm action={(formData) => createProduct({
-      sku: String(formData.get("sku") ?? ""),
-      name: String(formData.get("name") ?? ""),
+      sku: skuValue,
+      name,
       weightGrams: Number(formData.get("weightGrams")),
       unitPrice: Number(formData.get("unitPrice")),
       originCountry: String(formData.get("originCountry") || "Vietnam"),
@@ -25,16 +32,38 @@ export function ProductForm() {
     })} submitLabel="Add product">
       {(state) => (
         <div className="form-grid">
-          <Field label="SKU" name="sku" error={state.fieldErrors?.sku}>
-            <input placeholder="PB-SGN-500" />
+          <Field
+            label="SKU"
+            name="sku"
+            error={state.fieldErrors?.sku}
+            hint="Suggested from the name and weight. Edit to override."
+          >
+            <input
+              placeholder="PB-SGN-500"
+              value={skuValue}
+              onChange={(event) => {
+                setSku(event.target.value);
+                setSkuEdited(event.target.value.trim().length > 0);
+              }}
+            />
           </Field>
 
           <Field label="Name" name="name" error={state.fieldErrors?.name}>
-            <input placeholder="SAIGON 500g" />
+            <input
+              placeholder="SAIGON 500g"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
           </Field>
 
           <Field label="Weight (g)" name="weightGrams" error={state.fieldErrors?.weightGrams}>
-            <input type="number" min={1} step={1} defaultValue={250} />
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={weight}
+              onChange={(event) => setWeight(event.target.value)}
+            />
           </Field>
 
           <Field label="Unit price" name="unitPrice" error={state.fieldErrors?.unitPrice}>

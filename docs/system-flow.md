@@ -107,7 +107,7 @@ All types are defined in `lib/mock-store.tsx` (lines 14–166). The single root 
 
 | Field | Example | Why |
 |---|---|---|
-| `sku` | `PB-HN-250` | Human-stable identity used on screens and in CSV; unique, uppercased on create |
+| `sku` | `PB-HN-250` | Human-stable identity used on screens and in CSV; unique, uppercased on create. The add-product form suggests `PB-<first three letters of the name>-<weightGrams>`, and the operator may overwrite it |
 | `name` | `HANOI Say Hi` | Display name |
 | `originCountry`, `originRegion` | `Vietnam`, `Hanoi Province` | Provenance for the study's traceability story |
 | `species`, `process`, `roastLevel` | `Robusta / Arabica`, `Washed`, `Medium` | Descriptive attributes; no logic depends on them |
@@ -122,7 +122,7 @@ All types are defined in `lib/mock-store.tsx` (lines 14–166). The single root 
 
 | Field | Why |
 |---|---|
-| `code` | Operator-entered lot code (`HN-2601-A`). Unique case-insensitively; uppercased on save. This is the only way a person names a physical lot |
+| `code` | Operator-entered lot code (`HN-2601-A`). Unique case-insensitively; uppercased on save. The receive form pre-fills the next free code for the selected product and receipt month (`HN-2601-C` once `-A` and `-B` exist) and the operator may overwrite it. This is the only way a person names a physical lot |
 | `productId`, `deliveryId` | What it is, and which shipment it arrived on (`deliveryId` optional) |
 | `receivedAt`, `roastDate`, `packDate`, `bestBeforeDate`, `expiryDate` | The date chain. Only the *effective* date matters to logic (§5.2); the rest is evidence |
 | `status` | `ACTIVE` / `QUARANTINE` / `DEPLETED` / `DISPOSED` — a **flag**, separate from quantity. Only `QUARANTINE` is set by the app; `DEPLETED`/`DISPOSED` exist in the type but are not assigned |
@@ -365,6 +365,11 @@ is documented as a limitation rather than hidden.
 
 Predicates: `canViewReports`, `canManageAccounts`, `canManageMasterData` (`mock-store.tsx:320–330`).
 
+`canCreateRole(actor, role)` narrows the last row: an owner may create inventory staff and
+other owners, but never an administrator. The Accounts form drops the Administrator option
+for an owner, and `createUser` checks the same predicate so a tampered `select` is refused
+with a field error rather than trusted.
+
 Enforcement is intentionally doubled:
 
 - **Navigation** hides `/reports` and `/accounts` for staff (`nav.tsx:50–51`).
@@ -389,7 +394,7 @@ Screen: `/batches` → *Receive* (`app/(app)/batches/forms.tsx`). Store call: `c
 
 | Field | Rule | Why |
 |---|---|---|
-| Batch code | required, unique case-insensitively, uppercased on save | The human handle for a physical lot; duplicates would make the ledger ambiguous |
+| Batch code | required, unique case-insensitively, uppercased on save; pre-filled with the next free code for the selected product and receipt month | The human handle for a physical lot; duplicates would make the ledger ambiguous |
 | Product | must exist | Batches belong to exactly one product |
 | Delivery | optional, must be a known delivery | Links the lot to a shipment when one exists; small receipts may have none |
 | Quantity | integer > 0 | Physical units; fractional units are meaningless here |
@@ -681,6 +686,12 @@ Screens under `/catalog` (tabs: Products, Suppliers, Deliveries). Writes: `creat
 Validation: SKU and name required; SKU unique after uppercasing; weight an integer above zero; unit
 price finite and `>= 0`. Creation sets `isActive: true`.
 
+The SKU field suggests `PB-<first three letters of the name>-<weightGrams>` as the operator types,
+appending `-2`, `-3`, … when that SKU is already taken (`lib/codes.ts`). The suggestion stops
+following the name and weight once the operator edits the field, and clearing the field resumes it.
+It is a starting point only: the uniqueness rule above still runs on submit, so a suggestion can
+never bypass validation.
+
 Deactivation instead of deletion is a deliberate, documented choice (`mock-store.tsx:744–750`):
 batches and movements reference `productId`, so deleting a product would leave the ledger pointing at
 nothing and reports printing movements with no SKU. Deactivating keeps history readable and removes
@@ -709,6 +720,8 @@ backup panel.
 `createUser`:
 
 - role must be a known `Role` (guards against a tampered `select`);
+- the signed-in role must be allowed to grant that role: `canCreateRole` blocks an owner from
+  creating an administrator, mirroring the options the form offers;
 - name required; email required, regex-validated, unique after lowercasing;
 - password optional: if provided it must be at least 6 characters, otherwise the account falls back to
   `DEMO_PASSWORD`;
@@ -793,7 +806,8 @@ is a gap between the API surface and the UI, not a hidden button.
 
 State: signed in as staff. Product HANOI currently has `HN-2602-B` at 124 available.
 
-1. `/batches` → *Receive*: code `HN-2603-C`, product HANOI, quantity `100`, expiry `today + 120`.
+1. `/batches` → *Receive*: code `HN-2603-C` (overwriting the suggested next code for that month),
+   product HANOI, quantity `100`, expiry `today + 120`.
 2. `createLot` validates; writes batch id 8, `RECEIPT` movement id 18, audit `RECEIVE`.
 3. `buildBatchViews` now replays three movements for the new batch → `onHand 100`, `available 100`.
 4. Product available becomes 124 + 135 + 100 = 359 → `stockState` `OK`.
@@ -837,6 +851,7 @@ State: signed in as staff. Product HANOI currently has `HN-2602-B` at 124 availa
 | `lib/mock-store.tsx` | Types, seed, storage, session, every mutation, all derived helpers (`buildBatchViews`, `productSummaries`, `openAlerts`, `fefoPlan`), `downloadCsv` |
 | `lib/inventory/reports.ts` | Pure row builders for the five report panels |
 | `lib/inventory/periods.ts` | Week/month/year period resolution, shifting, totals, CSV keys |
+| `lib/codes.ts` | Suggests the next SKU and lot code for the create forms; pure functions, no state |
 | `lib/format.ts` | Date/time formatting, relative time, title casing, humanised movement labels |
 | `lib/row-focus.ts` | Cross-page "scroll to and highlight this row" hand-off via a requested href |
 | `lib/table-labels.tsx` | Render helper keeping `th`/`td` counts in lockstep (layout contract) |

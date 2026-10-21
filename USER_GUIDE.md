@@ -173,9 +173,10 @@ Three tabs: **All batches** (`/batches`), **Receive** (`/batches/receive`) and
 
 **All batches** — the full register, one row per batch with its dates, status and balances.
 
-**Receive** — the form you use when a delivery arrives. Fields: batch code (must be unique
-across all stock), product, an optional delivery to link it to, quantity, received date,
-roasted, packed, best-before, expiry, and notes. Button: **Receive batch**.
+**Receive** — the form you use when a delivery arrives. Fields: batch code (pre-filled with the
+next free code for the selected product and month; must be unique across all stock), product, an
+optional delivery to link it to, quantity, received date, roasted, packed, best-before, expiry, and
+notes. Button: **Receive batch**.
 
 **Quarantine** — holds a batch so it can never be issued. Give a reason; it is stored on the
 batch and shown wherever the batch appears. Button: **Quarantine**. **Release to available**
@@ -216,10 +217,10 @@ purpose.
 Records, **administrator and owner only**. Three tabs: **Products** (`/catalog`),
 **Suppliers** (`/catalog/suppliers`) and **Deliveries** (`/catalog/deliveries`).
 
-- **Products** — SKU, name, weight in grams, unit price, origin country and region, species
-  or blend, process, roast level, low-stock level, reorder point, and how many days ahead to
-  flag near-expiry. Products can be deactivated rather than deleted, so history keeps their
-  names.
+- **Products** — SKU (suggested from the name and weight, but still yours to set), name, weight in
+  grams, unit price, origin country and region, species or blend, process, roast level, low-stock
+  level, reorder point, and how many days ahead to flag near-expiry. Products can be deactivated
+  rather than deleted, so history keeps their names.
 - **Suppliers** — name, contact person, email, phone, country, address, and notes. Names
   must be unique.
 - **Deliveries** — supplier, received date, and notes, listed with a reference. Link a
@@ -296,6 +297,8 @@ more, and a backup panel.
 - **Create an account** — name, email, role, and an optional password. Leave the password
   blank and the account signs in with the demo password **`ProviBeans2026`**; set one and it
   signs in with that instead (at least 6 characters). New accounts work immediately.
+  The role list depends on who you are: an administrator can grant any role, while the owner
+  can grant inventory staff or owner but not administrator.
 - **Deactivate** blocks sign-in and keeps the account, so **Reactivate** can bring it back.
   Both are audited.
 - **Backup and restore** — **Download backup** saves the full browser state as
@@ -311,7 +314,8 @@ more, and a backup panel.
 ### Receive a delivery
 
 1. **Batches & receiving → Receive**
-2. Enter the batch code from the paperwork — it must be unique
+2. Check the pre-filled batch code against the paperwork — it is the next free code for that
+   product and month, and you can overwrite it. Either way it must be unique
 3. Choose the product and quantity
 4. Enter the dates; if you supply several, the expiry must be the latest of them
 5. Link the delivery if it is already recorded, and add notes
@@ -409,7 +413,8 @@ left · `DISPOSED` → written off
 
 Expiry must not be earlier than the dates before it, batch codes must be unique, quantities
 must be whole numbers above zero, and the form points at the field that is wrong instead of
-failing silently.
+failing silently. Suggested SKUs and batch codes are only a starting point — the same rules
+apply once you change them.
 
 ---
 

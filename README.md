@@ -1,8 +1,9 @@
 # Provi Beans
 
-**New here? Read [`USER_GUIDE.md`](USER_GUIDE.md)** for the screen-by-screen guide, and
-[`docs/system-flow.md`](docs/system-flow.md) for how the data model and every flow work.
-This README covers development, architecture, and verification.
+**New here? Read [`docs/user-flow.md`](docs/user-flow.md)** for the guided tour — why each screen
+exists, who may use it, and what to do next. [`USER_GUIDE.md`](USER_GUIDE.md) is the shorter
+screen-by-screen reference, and [`docs/system-flow.md`](docs/system-flow.md) explains how the data
+model and every flow work. This README covers development, architecture, and verification.
 
 Provi Beans is a frontend-only demonstration of a coffee inventory and stock
 monitoring system for administrators, inventory staff, and owners/managers. It
@@ -73,6 +74,7 @@ scripts/
 docs/ui-layout-alignment.md  layout contract and screenshot evidence
 docs/inventory-reporting.md   reports, filters, exports, and their verification
 docs/data-protection.md       sign-in, role checks, validation, sessions, backups, audit
+docs/user-flow.md             guided tour of every screen: purpose, role, and next step
 docs/system-flow.md           how the ledger, derivations, and every flow work end to end
 ```
 

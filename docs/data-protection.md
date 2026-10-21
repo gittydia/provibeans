@@ -38,9 +38,11 @@ credentials, and the README says so; do not reuse a real password here.
 
 Each helper is checked twice: the navigation entry is hidden, and the page itself
 refuses with a `notice-crit` panel. Reaching the URL directly therefore shows a refusal
-rather than data. Inventory staff keep the day-to-day operations — receiving,
-quarantining, releasing, issuing, adjusting, reversing, and recording deliveries — so
-the demo's receiving workflow still works with the staff account.
+rather than data. Record screens remain readable for inventory staff, with the entry forms
+replaced by the refusal notice. Staff keep the day-to-day operations — receiving,
+quarantining, releasing, issuing, adjusting, and reversing — so the demo's receiving and
+stock workflow still works with the staff account. Recording products, suppliers, and
+deliveries is limited to administrators and owners.
 
 These checks shape the interface. They are not a security boundary: the store's
 functions can be called from the browser console, and any client-side guard can be

@@ -50,7 +50,6 @@ function PeriodReports() {
     `/reports/periods?g=${gran}&d=${switchAnchor(period).toISOString().slice(0, 10)}`;
 
   const totals = report.totals;
-  const onHandMoved = totals.received + totals.issued + totals.returned + totals.damaged + totals.disposed;
 
   return (
     <>
@@ -166,14 +165,14 @@ function PeriodReports() {
               <td className="muted">Removes from stock</td>
             </tr>
             <tr>
-              <td>Adjustments</td>
-              <td className="num">{totals.adjusted}</td>
-              <td className="muted">Adds to stock</td>
+                <td>Adjustments</td>
+                <td className="num">{totals.adjusted}</td>
+                <td className="muted">Net manual variance</td>
             </tr>
             <tr>
-              <td>Physical counts</td>
-              <td className="num">{totals.counted}</td>
-              <td className="muted">Adds to stock</td>
+                <td>Physical counts</td>
+                <td className="num">{totals.counted}</td>
+                <td className="muted">Net counted variance</td>
             </tr>
             <tr>
               <td>Reservations made</td>
@@ -205,7 +204,7 @@ function PeriodReports() {
             <tr>
                 <th scope="row">Net change in stock</th>
               <td className="num">{totals.netOnHand > 0 ? `+${totals.netOnHand}` : totals.netOnHand}</td>
-              <td className="muted">{onHandMoved} units physically handled</td>
+                <td className="muted">{report.grossOnHandActivity} units affected by stock-changing movements</td>
             </tr>
           </tfoot>
         </table>

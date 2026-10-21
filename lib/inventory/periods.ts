@@ -113,6 +113,7 @@ export type PeriodReport = {
   openingReserved: number;
   closingOnHand: number;
   closingReserved: number;
+  grossOnHandActivity: number;
   totals: PeriodTotals;
   byProduct: ProductLine[];
 };
@@ -185,6 +186,7 @@ export function buildPeriodReport(state: MockState, period: Period): PeriodRepor
 
   let openingOnHand = 0;
   let openingReserved = 0;
+  let grossOnHandActivity = 0;
   for (const row of prior) {
     const onHandEffect = ON_HAND_EFFECT[row.type];
     if (onHandEffect !== undefined) openingOnHand += onHandEffect * row.quantity;
@@ -198,6 +200,9 @@ export function buildPeriodReport(state: MockState, period: Period): PeriodRepor
   for (const row of current) {
     apply(totals, row);
 
+    const onHandEffect = ON_HAND_EFFECT[row.type];
+    if (onHandEffect !== undefined) grossOnHandActivity += Math.abs(onHandEffect * row.quantity);
+
     let line = byProduct.get(row.sku);
     if (!line) {
       line = { sku: row.sku, name: row.name, received: 0, issued: 0, returned: 0, damaged: 0, disposed: 0, netOnHand: 0 };
@@ -209,7 +214,6 @@ export function buildPeriodReport(state: MockState, period: Period): PeriodRepor
     if (row.type === "DAMAGE") line.damaged += row.quantity;
     if (row.type === "DISPOSE") line.disposed += row.quantity;
 
-    const onHandEffect = ON_HAND_EFFECT[row.type];
     if (onHandEffect !== undefined) line.netOnHand += onHandEffect * row.quantity;
   }
 
@@ -219,6 +223,7 @@ export function buildPeriodReport(state: MockState, period: Period): PeriodRepor
     openingReserved,
     closingOnHand: openingOnHand + totals.netOnHand,
     closingReserved: openingReserved + totals.netReserved,
+    grossOnHandActivity,
     totals,
     byProduct: [...byProduct.values()].sort((a, b) => a.sku.localeCompare(b.sku)),
   };

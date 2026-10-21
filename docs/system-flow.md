@@ -351,8 +351,9 @@ is documented as a limitation rather than hidden.
 - A 30-second interval compares `now - lastActivityAt` to 30 minutes. When it exceeds that, the
   session is cleared and a `SIGN_OUT` audit row is written attributed to the user who was leaving.
 - `app/(app)/layout.tsx` redirects to `/login?reason=auth` when hydration completes without a user;
-  the Sign out button calls `logout()` and redirects to `/login?reason=signed-out`. The login screen
-  distinguishes those two reasons in its copy.
+  the Sign out button calls `logout()` and redirects to `/login?reason=signed-out`. Only the
+  `signed-out` value produces a notice ("You have been signed out."); `auth` is accepted but renders
+  no message, so an expired session lands on a plain sign-in card.
 
 ### 6.3 Roles
 

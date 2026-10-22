@@ -317,24 +317,40 @@ export function currentUser(state: MockState): User | null {
   return state.users.find((user) => user.id === state.currentUserId && user.isActive) ?? null;
 }
 
+/**
+ * Day-to-day stock operations: receiving, quarantining, releasing, issuing,
+ * adjusting, and reversing. The owner monitors these screens but does not act on them.
+ */
+export function canWriteStock(role: Role): boolean {
+  return role === "ADMIN" || role === "INVENTORY_STAFF";
+}
+
 export function canManageMasterData(role: Role): boolean {
-  return role === "ADMIN" || role === "OWNER";
+  return role === "ADMIN";
 }
 
 export function canViewReports(role: Role): boolean {
   return role === "ADMIN" || role === "OWNER";
 }
 
+/**
+ * The owner may read the account list for oversight but cannot create, deactivate, or
+ * reactivate accounts, and cannot restore a backup.
+ */
 export function canManageAccounts(role: Role): boolean {
+  return role === "ADMIN";
+}
+
+export function canViewAccounts(role: Role): boolean {
   return role === "ADMIN" || role === "OWNER";
 }
 
 /**
- * The owner is the account of last resort: an administrator runs the system and may create
- * staff or other administrators, but must never be able to mint an owner.
+ * Only an administrator may create accounts. The owner is read-only, so the owner role
+ * cannot be minted from the app; the seeded owner remains the account of last resort.
  */
 export function canCreateRole(actor: Role, role: Role): boolean {
-  return !(actor === "ADMIN" && role === "OWNER");
+  return actor === "ADMIN" && role !== "OWNER";
 }
 
 function isRole(value: string): value is Role {
@@ -778,7 +794,11 @@ export function MockStoreProvider({ children }: { children: ReactNode }) {
     const name = input.name.trim();
     const email = input.email.trim().toLowerCase();
     const fieldErrors: Record<string, string> = {};
-    if (!canCreateRole(actor.role, role)) fieldErrors.role = "Only an owner can create owner accounts.";
+    if (!canCreateRole(actor.role, role)) {
+      fieldErrors.role = role === "OWNER"
+        ? "Owner accounts cannot be created from the app."
+        : "Your role cannot create accounts.";
+    }
     if (!name) fieldErrors.name = "A name is required.";
     if (!email) fieldErrors.email = "An email address is required.";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fieldErrors.email = "Enter a valid email address.";

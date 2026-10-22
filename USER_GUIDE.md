@@ -79,22 +79,24 @@ administrator, so you only need to enter the password and press Sign in.
 |---|---|---|
 | `admin@provibeans.ph` | Administrator | Everything, including records, reports, accounts, and backups |
 | `staff@provibeans.ph` | Inventory staff | Day-to-day stock work; records and reports stay read-only or hidden |
-| `owner@provibeans.ph` | Owner / manager | Records, reports, account management, and backups |
+| `owner@provibeans.ph` | Owner / manager | Read-only oversight: every screen and the activity log, no writes |
 
 ### What the roles actually control
 
-Three checks decide the restricted screens, and each is applied twice — the navigation
-entry is hidden **and** the page refuses:
+Four checks decide the restricted screens, and each is applied twice — the navigation
+entry is hidden where the role has no access **and** the page refuses:
 
-- **`canManageMasterData`** → administrator and owner. Products, suppliers, and deliveries.
+- **`canWriteStock`** → administrator and inventory staff. Receiving, quarantining and
+  releasing, issuing, adjusting, and reversing.
+- **`canManageMasterData`** → administrator only. Products, suppliers, and deliveries.
 - **`canViewReports`** → administrator and owner. Every report screen and its CSV export.
-- **`canManageAccounts`** → administrator and owner. Accounts, backups, and restores.
+- **`canManageAccounts`** / **`canViewAccounts`** → an administrator manages accounts,
+  backups, and restores; the owner may read the account list.
 
-Inventory staff keep the operations that need doing every day: receiving, issuing,
-quarantining and releasing, adjusting, counting, and reversing. Record screens stay
-readable for them — the forms are replaced by a notice such as *"Only an administrator or
-the owner may record deliveries."* — and reports and accounts are hidden from the
-navigation and refuse to open.
+The **owner is read-only**: every screen stays visible, including the account list and the
+activity log, but entry forms are replaced by a notice such as *"Your role has read-only
+access. Only an administrator may record deliveries."* Inventory staff keep the operations
+that need doing every day, while records and reports stay read-only or hidden.
 
 These checks are browser-side behaviour, not a security boundary. See
 [`docs/data-protection.md`](docs/data-protection.md) for exactly what that means.
@@ -134,8 +136,8 @@ all, with **Mark all read** and a per-item mark-read control.
 
 Six entries in the left navigation. **Dashboard** and **Accounts** are single pages; the
 other four are section pages with **tabs** — the tab strip sits under the page heading, and
-each tab is its own route with its own URL. **Reports & activity** and **Accounts** appear
-only for administrators and owners.
+each tab is its own route with its own URL. **Reports & activity** appears only for
+administrators and owners; **Accounts** is hidden from inventory staff.
 
 ### Dashboard — "Stock control"
 
@@ -214,7 +216,8 @@ purpose.
 
 ### Products & suppliers
 
-Records, **administrator and owner only**. Three tabs: **Products** (`/catalog`),
+Records, **administrator only**. The owner and inventory staff see the tabs with a read-only
+notice. Three tabs: **Products** (`/catalog`),
 **Suppliers** (`/catalog/suppliers`) and **Deliveries** (`/catalog/deliveries`).
 
 - **Products** — SKU (suggested from the name and weight, but still yours to set), name, weight in
@@ -288,8 +291,9 @@ Finally a **by product** table: units in, out, returned, lost, and net change pe
 
 ### Accounts
 
-**Administrator and owner only.** `/accounts` — everyone who can sign in, the form to add
-more, and a backup panel.
+**Administrator manages; owner reads the list.** `/accounts` — everyone who can sign in, the
+form to add more, and a backup panel. The owner sees the list without the form or backup
+panel; inventory staff are refused.
 
 - **The list** gives each account's name, email, role, and whether it is **Active** or
   **Inactive**. Your own row is marked **You** and offers no Deactivate button — you cannot
@@ -297,8 +301,9 @@ more, and a backup panel.
 - **Create an account** — name, email, role, and an optional password. Leave the password
   blank and the account signs in with the demo password **`ProviBeans2026`**; set one and it
   signs in with that instead (at least 6 characters). New accounts work immediately.
-  The role list depends on who you are: the owner can grant any role, while an administrator
-  can grant inventory staff or administrator but not owner.
+  Only an administrator may create accounts, and the role list offers inventory staff or
+  administrator. The Owner role cannot be created from the app, so the seeded owner stays the
+  account of last resort.
 - **Deactivate** blocks sign-in and keeps the account, so **Reactivate** can bring it back.
   Both are audited.
 - **Backup and restore** — **Download backup** saves the full browser state as
@@ -355,7 +360,7 @@ the stock history and the audit log keeps both entries.
 
 ### Create a sign-in account
 
-1. **Accounts** in the left navigation (administrator and owner only)
+1. **Accounts** in the left navigation (administrator only)
 2. Enter the name and email, and choose a role
 3. Optionally set a password — leave it blank to use `ProviBeans2026`
 4. **Create account**
@@ -497,8 +502,8 @@ The development server only hands its runtime to origins it recognises. Add that
 `allowedDevOrigins` in `next.config.ts`, or reach the app through `localhost`.
 
 **A page shows a "not available to your role" notice**
-You are signed in as inventory staff. Records, reports, accounts, and backups are limited to
-administrators and owners.
+You are signed in as inventory staff, or as the read-only owner. Reports are limited to
+administrators and owners; records, accounts, and backups are limited to administrators.
 
 ---
 

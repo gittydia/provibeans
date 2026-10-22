@@ -32,22 +32,26 @@ credentials, and the README says so; do not reuse a real password here.
 
 | Helper | Who passes | Applied in |
 |---|---|---|
-| `canManageMasterData` | Administrator, Owner | `/catalog`, `/catalog/suppliers`, `/catalog/deliveries`, catalog layout |
+| `canWriteStock` | Administrator, Inventory staff | `/batches/receive`, `/batches/quarantine`, `/issue`, `/issue/movements` |
+| `canManageMasterData` | Administrator | `/catalog`, `/catalog/suppliers`, `/catalog/deliveries`, catalog layout |
 | `canViewReports` | Administrator, Owner | `/reports` and every report route, navigation |
-| `canManageAccounts` | Administrator, Owner | `/accounts`, navigation |
-| `canCreateRole` | Owner: any; Administrator: staff and administrator | `/accounts` role select, `createUser` |
+| `canManageAccounts` | Administrator | `/accounts` create/deactivate/restore controls |
+| `canViewAccounts` | Administrator, Owner | `/accounts` read-only list, navigation |
+| `canCreateRole` | Administrator: staff and administrator | `/accounts` role select, `createUser` |
 
-The owner is the account of last resort, so an administrator cannot mint one: `canCreateRole`
-removes the Owner option from the create form for an administrator, and `createUser` rejects a
-tampered `select` with a field error, so the restriction does not depend on the interface alone.
+The owner monitors rather than acts. It keeps every screen in the navigation, including the
+account list and the activity log, but every entry form is replaced by a read-only notice.
+Because only an administrator may create accounts, and an administrator cannot mint another
+owner, the seeded owner remains the account of last resort: `canCreateRole` removes the Owner
+option from the create form, and `createUser` rejects a tampered `select` with a field error,
+so the restriction does not depend on the interface alone.
 
-Each helper is checked twice: the navigation entry is hidden, and the page itself
-refuses with a `notice-crit` panel. Reaching the URL directly therefore shows a refusal
-rather than data. Record screens remain readable for inventory staff, with the entry forms
-replaced by the refusal notice. Staff keep the day-to-day operations — receiving,
-quarantining, releasing, issuing, adjusting, and reversing — so the demo's receiving and
-stock workflow still works with the staff account. Recording products, suppliers, and
-deliveries is limited to administrators and owners.
+Each helper is checked twice: the navigation entry is hidden where the role has no access, and
+the page itself refuses with a `notice-crit` panel. Reaching the URL directly therefore shows a
+refusal rather than data. Record screens remain readable for inventory staff and the owner, with
+the entry forms replaced by a notice. Staff keep the day-to-day operations — receiving,
+quarantining, releasing, issuing, adjusting, and reversing. Recording products, suppliers, and
+deliveries, and managing accounts and backups, is limited to administrators.
 
 These checks shape the interface. They are not a security boundary: the store's
 functions can be called from the browser console, and any client-side guard can be
@@ -67,8 +71,8 @@ Every mutation validates before it writes:
   increase or decrease.
 - **Suppliers** — name required and unique case-insensitively.
 - **Deliveries** — the supplier must exist and the reference must be unique when given.
-- **Accounts** — role must be valid, the signed-in role must be allowed to grant it (an
-  administrator cannot create an owner), name required, email format-checked and unique,
+- **Accounts** — role must be valid, only an administrator may create accounts, and the
+  Owner role cannot be minted at all, name required, email format-checked and unique,
   and a supplied password must be at least six characters.
 
 Rejections return field-level errors where a field is at fault, and a form-level message
@@ -92,7 +96,8 @@ server-side session, so it cannot resist someone who can read browser storage.
 
 ## Backups
 
-Administrators and owners get a **Backup and restore** panel on `/accounts`.
+Administrators get a **Backup and restore** panel on `/accounts`. The owner can read the
+account list but does not see the panel.
 
 - **Download** writes `provi-beans-backup-YYYY-MM-DD.json` containing
   `{ exportedAt, state }`, produced in the browser.

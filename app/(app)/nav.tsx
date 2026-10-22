@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, type ReactNode } from "react";
-import { canManageAccounts, canViewReports, useMockStore } from "@/lib/mock-store";
+import { canViewAccounts, canViewReports, useMockStore } from "@/lib/mock-store";
 
 const links = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
@@ -48,7 +48,7 @@ function useVisibleLinks() {
   const { user } = useMockStore();
   return links.filter((link) => {
     if (link.href === "/reports") return Boolean(user && canViewReports(user.role));
-    if (link.href === "/accounts") return Boolean(user && canManageAccounts(user.role));
+    if (link.href === "/accounts") return Boolean(user && canViewAccounts(user.role));
     return true;
   });
 }

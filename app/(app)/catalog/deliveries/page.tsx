@@ -62,8 +62,8 @@ export default function DeliveriesPage() {
           </div>
         </section>
       ) : (
-        <p className="notice notice-crit" role="note">
-          Only an administrator or the owner may record deliveries.
+        <p className="notice" role="note">
+          Your role has read-only access. Only an administrator may record deliveries.
         </p>
       )}
     </>

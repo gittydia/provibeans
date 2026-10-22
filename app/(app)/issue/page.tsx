@@ -1,10 +1,12 @@
 "use client";
 
-import { buildBatchViews, fefoPlan, useMockStore } from "@/lib/mock-store";
+import { buildBatchViews, canWriteStock, fefoPlan, useMockStore } from "@/lib/mock-store";
 import { IssueForm } from "./forms";
 
 export default function IssuePage() {
-  const { state } = useMockStore();
+  const { state, user } = useMockStore();
+  if (!user) return null;
+  const canWrite = canWriteStock(user.role);
   const views = buildBatchViews(state);
   const productRows = [...state.products]
     .filter((product) => product.isActive)
@@ -42,7 +44,13 @@ export default function IssuePage() {
           <p>Stock comes from the batches that expire soonest when no batch is chosen.</p>
         </header>
         <div className="panel-body">
-          <IssueForm products={productOptions} batches={lotOptions} />
+          {canWrite ? (
+            <IssueForm products={productOptions} batches={lotOptions} />
+          ) : (
+            <p className="notice" role="note">
+              Your role has read-only access. Only an administrator or inventory staff may issue stock.
+            </p>
+          )}
         </div>
       </section>
 

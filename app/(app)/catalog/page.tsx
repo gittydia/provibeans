@@ -123,8 +123,8 @@ export default function CatalogPage() {
           </div>
         </section>
       ) : (
-        <p className="notice notice-crit" role="note">
-          Only an administrator or the owner may add products.
+        <p className="notice" role="note">
+          Your role has read-only access. Only an administrator may add or deactivate products.
         </p>
       )}
     </>

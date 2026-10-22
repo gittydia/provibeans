@@ -67,8 +67,8 @@ export default function SuppliersPage() {
           </div>
         </section>
       ) : (
-        <p className="notice notice-crit" role="note">
-          Only an administrator or the owner may add suppliers.
+        <p className="notice" role="note">
+          Your role has read-only access. Only an administrator may add suppliers.
         </p>
       )}
     </>

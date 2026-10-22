@@ -357,25 +357,33 @@ is documented as a limitation rather than hidden.
 
 ### 6.3 Roles
 
-| Role | Label | Can view reports | Can manage accounts | Can manage catalogue |
-|---|---|---|---|---|
-| `ADMIN` | Administrator | yes | yes | yes |
-| `OWNER` | Owner / manager | yes | yes | yes |
-| `INVENTORY_STAFF` | Inventory staff | no | no | no |
+| Role | Label | Can view reports | Can view accounts | Can manage accounts | Can manage catalogue | Can write stock |
+|---|---|---|---|---|---|---|
+| `ADMIN` | Administrator | yes | yes | yes | yes | yes |
+| `OWNER` | Owner / manager | yes | yes | no | no | no |
+| `INVENTORY_STAFF` | Inventory staff | no | no | no | no | yes |
 
-Predicates: `canViewReports`, `canManageAccounts`, `canManageMasterData` (`mock-store.tsx:320–330`).
+Predicates: `canViewReports`, `canViewAccounts`, `canManageAccounts`, `canManageMasterData`, and
+`canWriteStock` (`mock-store.tsx:320–345`).
 
-`canCreateRole(actor, role)` narrows the last row: an administrator may create inventory staff
-and other administrators, but never an owner. The Accounts form drops the Owner option for an
-administrator, and `createUser` checks the same predicate so a tampered `select` is refused
-with a field error rather than trusted.
+The owner is a monitoring role: it reaches every screen, including the account list and the
+activity log, but `canWriteStock`, `canManageMasterData`, and `canManageAccounts` all return false,
+so entry forms and account controls render as read-only notices instead.
+
+`canCreateRole(actor, role)` narrows the last rows: an administrator may create inventory staff
+and other administrators, but never an owner, and the read-only owner may not create accounts at
+all. The Accounts form drops the Owner option, and `createUser` checks the same predicate so a
+tampered `select` is refused with a field error rather than trusted. The seeded owner therefore
+remains the account of last resort.
 
 Enforcement is intentionally doubled:
 
-- **Navigation** hides `/reports` and `/accounts` for staff (`nav.tsx:50–51`).
+- **Navigation** hides `/reports` for staff and `/accounts` for staff (`nav.tsx:50–51`).
 - **Pages** re-check and early-return an explanatory panel (`reports/page.tsx:39`,
   `reports/movements/page.tsx:26`, `reports/activity/page.tsx:43`; `/accounts` uses
-  `canManageAccounts`; catalogue screens use `canManageMasterData` to decide whether forms render).
+  `canViewAccounts` to refuse and `canManageAccounts` to decide which controls render; catalogue
+  screens use `canManageMasterData`, and stock screens use `canWriteStock`, to decide whether
+  forms render).
 
 Hiding a link is presentation; the page-level check is what makes "staff cannot see reports" true even
 when the URL is typed directly. Neither is a security boundary, because all data is in the browser.
@@ -714,14 +722,15 @@ delivery reference onto the `RECEIPT` movement so the ledger carries the paper t
 
 ## 16. Accounts
 
-`/accounts` (admins and owners only). Shows the user list with role and status, a create form, and the
-backup panel.
+`/accounts` (administrators manage; the owner reads the list). Shows the user list with role and
+status, a create form, and the backup panel. The owner sees the list without the create form or
+backup panel; inventory staff are refused.
 
 `createUser`:
 
 - role must be a known `Role` (guards against a tampered `select`);
-- the signed-in role must be allowed to grant that role: `canCreateRole` blocks an administrator
-  from creating an owner, mirroring the options the form offers;
+- only an administrator may create accounts, and the Owner role cannot be minted at all
+  (`canCreateRole`), mirroring the options the form offers;
 - name required; email required, regex-validated, unique after lowercasing;
 - password optional: if provided it must be at least 6 characters, otherwise the account falls back to
   `DEMO_PASSWORD`;

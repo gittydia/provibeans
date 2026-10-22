@@ -1,10 +1,12 @@
 "use client";
 
-import { buildBatchViews, useMockStore } from "@/lib/mock-store";
+import { buildBatchViews, canWriteStock, useMockStore } from "@/lib/mock-store";
 import { QuarantineForm, ReleaseForm } from "../forms";
 
 export default function QuarantinePage() {
-  const { state } = useMockStore();
+  const { state, user } = useMockStore();
+  if (!user) return null;
+  const canWrite = canWriteStock(user.role);
   const views = buildBatchViews(state);
 
   return (
@@ -31,9 +33,11 @@ export default function QuarantinePage() {
                 </div>
                 <div>
                   <p className="muted">{view.batch.quarantineReason ?? "No reason recorded."}</p>
-                  <div className="row-form">
-                    <ReleaseForm batchId={view.batch.id} />
-                  </div>
+                  {canWrite ? (
+                    <div className="row-form">
+                      <ReleaseForm batchId={view.batch.id} />
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ))
@@ -46,7 +50,12 @@ export default function QuarantinePage() {
           <p>Quarantine requires a reason and is always reversible.</p>
         </header>
         <div className="panel-body">
-          {views.filter((view) => !view.isQuarantined && view.batch.status === "ACTIVE").length === 0 ? (
+          {!canWrite ? (
+            <p className="notice" role="note">
+              Your role has read-only access. Only an administrator or inventory staff may quarantine or
+              release batches.
+            </p>
+          ) : views.filter((view) => !view.isQuarantined && view.batch.status === "ACTIVE").length === 0 ? (
             <p className="empty">No batches ready to hold.</p>
           ) : (
             <div className="split">

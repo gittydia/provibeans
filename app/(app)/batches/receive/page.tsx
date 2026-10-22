@@ -1,10 +1,12 @@
 "use client";
 
-import { useMockStore } from "@/lib/mock-store";
+import { canWriteStock, useMockStore } from "@/lib/mock-store";
 import { CreateLotForm } from "../forms";
 
 export default function ReceiveBatchPage() {
-  const { state } = useMockStore();
+  const { state, user } = useMockStore();
+  if (!user) return null;
+  const canWrite = canWriteStock(user.role);
   const productRows = [...state.products]
     .filter((product) => product.isActive)
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -19,22 +21,28 @@ export default function ReceiveBatchPage() {
         <p>Dates are validated on entry: expiry cannot precede best-before, packing, roasting or receipt.</p>
       </header>
       <div className="panel-body">
-        <CreateLotForm
-          products={productRows.map((product) => ({
-            id: product.id,
-            label: `${product.sku} — ${product.name}`,
-            sku: product.sku,
-            name: product.name,
-          }))}
-          deliveries={deliveryRows.map((row) => ({
-            id: row.delivery.id,
-            label: `${row.delivery.reference ?? "Delivery #" + row.delivery.id} — ${row.supplierName}`,
-          }))}
-          batches={state.batches.map((batch) => ({
-            code: batch.code,
-            productId: batch.productId,
-          }))}
-        />
+        {canWrite ? (
+          <CreateLotForm
+            products={productRows.map((product) => ({
+              id: product.id,
+              label: `${product.sku} — ${product.name}`,
+              sku: product.sku,
+              name: product.name,
+            }))}
+            deliveries={deliveryRows.map((row) => ({
+              id: row.delivery.id,
+              label: `${row.delivery.reference ?? "Delivery #" + row.delivery.id} — ${row.supplierName}`,
+            }))}
+            batches={state.batches.map((batch) => ({
+              code: batch.code,
+              productId: batch.productId,
+            }))}
+          />
+        ) : (
+          <p className="notice" role="note">
+            Your role has read-only access. Only an administrator or inventory staff may receive batches.
+          </p>
+        )}
       </div>
     </section>
   );

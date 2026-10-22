@@ -38,15 +38,18 @@ All three accounts use the password **`ProviBeans2026`**.
 |---|---|---|
 | `admin@provibeans.ph` | Administrator | All inventory and reporting screens |
 | `staff@provibeans.ph` | Inventory staff | Day-to-day stock operations |
-| `owner@provibeans.ph` | Owner / manager | Oversight and reporting |
+| `owner@provibeans.ph` | Owner / manager | Read-only oversight: every screen and the activity log, no writes |
 
 Authentication is simulated in the browser. These credentials are demo data,
 not real accounts, and no credentials are sent to a server.
 
-Administrators and owners can create more accounts from the **Accounts** screen
-(`/accounts`); an administrator can create staff and administrator accounts, but only the
-owner can create another owner. A new account can have its own password, or use
-`ProviBeans2026` when left blank.
+Administrators create and manage accounts from the **Accounts** screen
+(`/accounts`). The owner can open that screen to read the account list, but the role is
+otherwise read-only: it cannot receive, quarantine, issue, adjust, or reverse stock, edit the
+catalogue, create accounts, or restore a backup. Because only an administrator may create
+accounts and an administrator cannot mint another owner, the seeded owner remains the account
+of last resort. A new account can have its own password, or use `ProviBeans2026` when left
+blank.
 
 ## Frontend-only data model
 

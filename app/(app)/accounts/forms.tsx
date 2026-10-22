@@ -34,7 +34,7 @@ export function AccountForm({ actorRole }: { actorRole: Role }) {
             label="Role"
             name="role"
             error={state.fieldErrors?.role}
-            hint={actorRole === "ADMIN" ? "Owner accounts can only be created by the owner." : undefined}
+            hint={actorRole === "ADMIN" ? "Owner accounts cannot be created from the app; the seeded owner stays the account of last resort." : undefined}
           >
             <select defaultValue="INVENTORY_STAFF">
               {roles.map((role) => (

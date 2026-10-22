@@ -1,10 +1,12 @@
 "use client";
 
-import { buildBatchViews, useMockStore } from "@/lib/mock-store";
+import { buildBatchViews, canWriteStock, useMockStore } from "@/lib/mock-store";
 import { AdjustForm, ReverseForm } from "../forms";
 
 export default function MovementsPage() {
-  const { state } = useMockStore();
+  const { state, user } = useMockStore();
+  if (!user) return null;
+  const canWrite = canWriteStock(user.role);
   const views = buildBatchViews(state);
   const lotOptions = views.map((view) => ({
     id: view.batch.id,
@@ -26,7 +28,14 @@ export default function MovementsPage() {
           <p>Reserve, release, return, damage, dispose, adjust or reconcile a count.</p>
         </header>
         <div className="panel-body">
-          <AdjustForm batches={lotOptions} />
+          {canWrite ? (
+            <AdjustForm batches={lotOptions} />
+          ) : (
+            <p className="notice" role="note">
+              Your role has read-only access. Only an administrator or inventory staff may record stock
+              changes.
+            </p>
+          )}
         </div>
       </section>
 
@@ -49,15 +58,17 @@ export default function MovementsPage() {
                   <br />#{movement.id}
                 </p>
               </div>
-              <div>
-                <p className="muted">
-                  {movement.reason ?? "No reason recorded"}
-                  {movement.reference ? ` · ${movement.reference}` : ""}
-                </p>
-                <div className="row-form">
-                  <ReverseForm movementId={movement.id} />
+                <div>
+                  <p className="muted">
+                    {movement.reason ?? "No reason recorded"}
+                    {movement.reference ? ` · ${movement.reference}` : ""}
+                  </p>
+                  {canWrite ? (
+                    <div className="row-form">
+                      <ReverseForm movementId={movement.id} />
+                    </div>
+                  ) : null}
                 </div>
-              </div>
             </div>
           ))
         )}

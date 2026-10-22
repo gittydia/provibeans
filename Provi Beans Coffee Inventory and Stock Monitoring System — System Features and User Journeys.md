@@ -12,9 +12,9 @@ The system does not need a Vietnam shipping reference. A delivery can carry a su
 
 * Administrator — manages accounts, roles, product and supplier records, and deliveries, and reviews reports and activity.  
 * Inventory Staff — receives batches, issues stock, records stock changes, quarantines or releases batches, and responds to alerts.  
-* Owner or Manager — monitors inventory health, reviews reports and activity, and shares the administrator’s management permissions.  
+* Owner or Manager — monitors inventory health, reviews reports and activity, with read-only access to records, accounts, and stock screens.  
 
-Inventory staff handle daily stock operations. Administrators and owners/managers maintain records and review performance. The demonstration does not include an approval hierarchy, a separate receiving clerk, or a system administrator distinct from the administrator role.
+Inventory staff handle daily stock operations. Administrators maintain records and accounts and perform stock operations; owners/managers review performance without changing data. The demonstration does not include an approval hierarchy, a separate receiving clerk, or a system administrator distinct from the administrator role.
 
 # 2\. Core Features
 
@@ -22,10 +22,10 @@ Inventory staff handle daily stock operations. Administrators and owners/manager
 
 * Demo sign-in and sign-out with browser-local state.  
 * Three roles: Administrator, Inventory Staff, and Owner or Manager.  
-* Administrator and Owner/Manager can manage products, suppliers, deliveries, and accounts, and can review reports and activity. Inventory Staff can receive batches, issue stock, record stock changes, and quarantine or release batches. Master data is read-only for Inventory Staff.  
+* Only an Administrator can manage products, suppliers, deliveries, and accounts. Inventory Staff can receive batches, issue stock, record stock changes, and quarantine or release batches. The Owner/Manager keeps every screen, including reports and the account list, but changes nothing. Master data and stock forms are read-only for the Owner/Manager, and master data is read-only for Inventory Staff.  
 * Account creation with name, email, role, and an optional password. A blank password uses the demo password. Accounts can be activated or deactivated, and deactivated accounts cannot sign in.  
 * There is no password reset, server-side session control, or multi-user synchronization in the demonstration.  
-* Accounts is limited to Administrator and Owner/Manager. Reports & activity appears in their navigation, and CSV export is limited to them. Stock operations remain available to all signed-in roles.  
+* Accounts is visible to Administrator and Owner/Manager; only an Administrator can add or deactivate accounts or restore a backup, while the Owner/Manager reads the list. Reports & activity appears in their navigation, and CSV export is limited to them. Stock-changing operations are limited to Administrator and Inventory Staff.  
 * Role checks are UI behavior, not a server-side security boundary.  
 
 ## 2.2 Product and Supplier Records
@@ -201,7 +201,7 @@ The system is not a full enterprise resource planning platform. It is an academi
 # 7\. Defense Flow
 
 1. Open with the business problem: Provi Beans needs a clear view of batch-level stock, freshness, reservations, and stock movements without relying on spreadsheets.  
-2. Show the roles: Administrator manages accounts and master data; Inventory Staff handles receiving, issuing, and stock changes; Owner/Manager reviews inventory health and reports.  
+2. Show the roles: Administrator manages accounts and master data and performs stock operations; Inventory Staff handles receiving, issuing, and stock changes; Owner/Manager reviews inventory health, reports, and the account list read-only.  
 3. Demonstrate product and supplier setup, then record a delivery and receive a batch.  
 4. Issue stock without choosing a batch to show earliest-expiry priority, then show how a specific batch can be selected.  
 5. Record a reservation, release, quarantine, damage, disposal, physical count, and reversal to show stock history and balance changes.  

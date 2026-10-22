@@ -66,21 +66,22 @@ A useful habit: after any action, glance at the history row it produced. If the 
 | Capability | Administrator | Owner / manager | Inventory staff |
 |---|---|---|---|
 | View dashboard, alerts, batches, notifications | Yes | Yes | Yes |
-| Receive batches | Yes | Yes | Yes |
-| Quarantine and release batches | Yes | Yes | Yes |
-| Issue stock | Yes | Yes | Yes |
-| Record stock changes (reserve, return, damage, dispose, adjust, count) | Yes | Yes | Yes |
-| Reverse a movement | Yes | Yes | Yes |
+| Receive batches | Yes | No — read-only | Yes |
+| Quarantine and release batches | Yes | No — read-only | Yes |
+| Issue stock | Yes | No — read-only | Yes |
+| Record stock changes (reserve, return, damage, dispose, adjust, count) | Yes | No — read-only | Yes |
+| Reverse a movement | Yes | No — read-only | Yes |
 | View products, suppliers, deliveries | Yes | Yes | Yes — read-only |
-| Add/edit products, suppliers, deliveries | Yes | Yes | No |
+| Add/edit products, suppliers, deliveries | Yes | No | No |
 | Open reports, exports, activity, periods | Yes | Yes | No — hidden in navigation |
-| Manage accounts | Yes | Yes | No |
-| Backup and restore | Yes | Yes | No |
+| View accounts | Yes | Yes — read-only | No |
+| Manage accounts | Yes | No | No |
+| Backup and restore | Yes | No | No |
 
 Two details worth knowing:
 
 - The **Reports & activity** and **Accounts** items do not appear in the navigation for inventory staff. The pages themselves also refuse the visit.
-- Day-to-day stock operations are open to every signed-in role. That is a demonstration choice, not a real-world permission model; see [§10](#10-limits-of-this-demo).
+- The **owner is read-only**: every screen stays visible, including the account list and the activity log, but entry forms are replaced by a read-only notice. Day-to-day stock operations are open to administrators and inventory staff. That is a demonstration choice, not a real-world permission model; see [§10](#10-limits-of-this-demo).
 
 ---
 
@@ -291,7 +292,7 @@ Do not use **Manual adjustment** for a count. Adjustment is for deliberate incre
 
 **Why it exists.** Stock enters the system only by being received. Receiving records an arrival as a batch instead of editing a stored total, which keeps the history as the single source of truth.
 
-**Who.** Every signed-in role.
+**Who.** Administrators and inventory staff. The owner sees the form replaced by a read-only notice.
 
 **What you see.** A form: **Batch code** (pre-filled with the next free code for the selected product and month; unique across all stock), **Product**, **Delivery** (optional), **Quantity**, **Received** (defaults to today), **Roasted**, **Packed**, **Best before**, **Expires**, **Notes**, and the **Receive batch** button.
 
@@ -305,7 +306,7 @@ Do not use **Manual adjustment** for a count. Adjustment is for deliberate incre
 
 **Why it exists.** Some stock should not be issued but should not be written off either — damaged packaging, a supplier question, a suspected date problem. Quarantine holds stock in place: still on the books, still counted, unavailable.
 
-**Who.** Every signed-in role.
+**Who.** Administrators and inventory staff. The owner sees the held-batch list and release controls replaced by a read-only notice.
 
 **What you see.** Two panels. **Quarantine** lists held batches with their reason and a **Release to available** control. **Hold a batch** lists active batches, each with a reason field and a **Quarantine** button.
 
@@ -319,7 +320,7 @@ Do not use **Manual adjustment** for a count. Adjustment is for deliberate incre
 
 **Why it exists.** Stock leaves against a batch, and the application should choose the batch that expires soonest unless a person has a reason to override it.
 
-**Who.** Every signed-in role.
+**Who.** Administrators and inventory staff. The owner sees the form replaced by a read-only notice but keeps **Suggested batches**.
 
 **What you see.** **Issue stock** with **Product**, **Quantity**, **Batch** (defaulting to "Soonest expiry first — recommended"), **Reference**, **Reason**, and the **Issue stock** button. Below it, **Suggested batches**: for each product, the batch to issue first, its use-by date, days left, how many batches are in play, and total ready to issue.
 
@@ -333,7 +334,7 @@ Do not use **Manual adjustment** for a count. Adjustment is for deliberate incre
 
 **Why it exists.** Not every stock event is a receipt or an issue. Reservations, returns, damage, disposal, adjustments, physical counts, and reversals all live here.
 
-**Who.** Every signed-in role.
+**Who.** Administrators and inventory staff. The owner sees the form and **Reverse** controls replaced by a read-only notice but keeps **Recent issues** readable.
 
 **What you see.** **Record a stock change** with **Batch**, **Stock change** (reserve, release a reservation, cancel a reservation, return stock in, record damage, dispose stock, manual adjustment, reconcile a physical count), an **Adjustment direction** field that appears only for manual adjustments, **Quantity** (or **Counted quantity** for a count), **Reason**, **Reference**, and **Record stock change**. Below it, **Recent issues** — the eight most recent issues, each with a **Reverse** control and a reason field.
 
@@ -355,7 +356,7 @@ Do not use **Manual adjustment** for a count. Adjustment is for deliberate incre
 
 **Why it exists.** Master data: the SKU, the name, the price, and the thresholds that turn availability into a reorder decision.
 
-**Who.** Everyone may read. Only administrators and owners may add, deactivate, or reactivate. Staff see the page with a read-only notice.
+**Who.** Everyone may read. Only administrators may add, deactivate, or reactivate. Staff and the owner see the page with a read-only notice.
 
 **What you see.** A table of **SKU**, **Name**, **Origin**, **Blend**, **Size**, **Price**, **Low / reorder**, and **Batches**, plus a **State** column for roles that may edit. Inactive products keep an **Inactive** badge. Below, **Add a product**, where the SKU is suggested from the name and weight and must still be unique.
 
@@ -369,7 +370,7 @@ Do not use **Manual adjustment** for a count. Adjustment is for deliberate incre
 
 **Why it exists.** Provenance. A batch that cannot be traced to a supplier cannot be recalled precisely.
 
-**Who.** Everyone may read; only administrators and owners may add.
+**Who.** Everyone may read; only administrators may add.
 
 **What you see.** A suppliers table and an **Add a supplier** form.
 
@@ -381,7 +382,7 @@ Do not use **Manual adjustment** for a count. Adjustment is for deliberate incre
 
 **Why it exists.** A delivery is the paperwork between a supplier and one or more batches. It is the middle link in supplier → delivery → batch → movement.
 
-**Who.** Everyone may read; only administrators and owners may record.
+**Who.** Everyone may read; only administrators may record.
 
 **What you see.** A deliveries table and a **Record a delivery** form.
 
@@ -457,17 +458,17 @@ Do not use **Manual adjustment** for a count. Adjustment is for deliberate incre
 
 **Why it exists.** The demo needs identities, and a departing colleague should stop being able to sign in without their history disappearing.
 
-**Who.** Administrators and owners. Staff see "Only an administrator or the owner may manage accounts." Only the owner can create another owner; an administrator's role list offers inventory staff and administrator.
+**Who.** Administrators manage accounts, including backups and restores. The owner may open the page and read the account list, but sees a read-only notice instead of the add form and backup panel. Staff do not see the navigation item, and the page refuses the visit with "Only an administrator or the owner may view accounts."
 
-**What you see.** A table of **Name**, **Email**, **Role**, **State**, and **Action**, with a **You** badge and **Signed in** where the row is your own account. Below, **Add an account**, then the backup panel.
+**What you see.** A table of **Name**, **Email**, **Role**, and **State**, with a **You** badge and, for administrators, an **Action** column showing **Signed in** on your own row. Below, **Add an account** and the backup panel, both administrator-only.
 
-**How to use it.** Create the account with a name, email, role, and password — leave the password blank to use `ProviBeans2026`. Choose the role deliberately: it decides reports, catalogue editing, and accounts access. The role list is limited by who you are — an administrator cannot create an owner, and the option is not offered. Deactivate a leaver rather than deleting them; the account is kept and can be switched back on.
+**How to use it.** Create the account with a name, email, role, and password — leave the password blank to use `ProviBeans2026`. Choose the role deliberately: it decides stock operations, catalogue editing, reports, and accounts access. Only an administrator may create accounts, and the Owner role is not offered because it cannot be minted from the app. Deactivate a leaver rather than deleting them; the account is kept and can be switched back on.
 
 **What to do next.** Tell the new user their password and that all three demo passwords are shared. If you deactivate someone, their existing session ends on the next idle check or when they sign out.
 
-**Notes.** You cannot deactivate yourself; your own row shows **Signed in** instead of a control. New accounts can sign in immediately — there is no invitation step.
+**Notes.** You cannot deactivate yourself; your own row shows **Signed in** instead of a control. New accounts can sign in immediately — there is no invitation step. The seeded owner is the account of last resort and cannot be recreated from the app.
 
-**Backup panel.** Download writes a JSON snapshot; restore replaces the application state from such a file. Backups contain the demo's plain-text passwords and should be treated as demonstration artefacts. CSV exports are separate and are produced per report.
+**Backup panel.** Administrators see it on this page; the owner does not. Download writes a JSON snapshot; restore replaces the application state from such a file. Backups contain the demo's plain-text passwords and should be treated as demonstration artefacts. CSV exports are separate and are produced per report.
 
 ### 6.17 The header
 
@@ -550,7 +551,7 @@ Available is the number to trust when deciding what can be promised. In stock is
 | Quantity rejected | Zero, negative, or more than available | Use a whole positive number within what is available |
 | Batch cannot be issued | Expired or quarantined | Release it, or use another batch |
 | Reversal refused because it would reserve stock from an expired or quarantined batch | The original issue has a reservation attached to a batch that is now blocked | Release or re-reserve the reservation, then reverse |
-| Accounts page says only an administrator or owner may manage accounts | Role has no access | Sign in with an administrator or owner account |
+| Accounts page refuses the visit | Inventory staff have no account access | Sign in with an administrator or owner account |
 | Reports page refuses the visit | Inventory staff have no report access | Sign in with an administrator or owner account |
 | Sign-in page with no message | A protected page was opened without a session | Sign in again — only an idle sign-out shows the signed-out notice |
 

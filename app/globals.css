@@ -1,12 +1,12 @@
 :root {
-  --espresso: #2c1f1b;
-  --cacao: #3a2924;
-  --paper: #e8ded0;
-  --ivory: #f5f0e8;
-  --sand: #c9baaa;
-  --leaf: #53614a;
-  --clay: #a65f43;
-  --gold: #c8a56a;
+  --espresso: #0a0a0a;
+  --cacao: #1f1f1f;
+  --paper: #ffffff;
+  --ivory: #fafafa;
+  --sand: #a1a1aa;
+  --leaf: #1f1f1f;
+  --clay: #3f3f46;
+  --gold: #a1a1aa;
 
   /* ---------------------------------------------------------------------------
      Typography
@@ -76,8 +76,8 @@ html {
 
 body {
   margin: 0;
-  background: var(--paper);
-  color: var(--espresso);
+  background: var(--app-bg);
+  color: var(--app-ink);
   font-family: var(--sans);
   overflow-x: clip;
 }
@@ -376,7 +376,7 @@ h1 {
 
 .collection {
   padding: clamp(88px, 14vw, 190px) clamp(24px, 5vw, 96px);
-  background: #d9cdbb;
+  background: #f4f4f5;
 }
 
 .collection header {

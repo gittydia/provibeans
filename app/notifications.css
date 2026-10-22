@@ -37,8 +37,8 @@
   min-width: 19px;
   padding: 1px 5px;
   border-radius: 999px;
-  background: var(--clay);
-  color: var(--ivory);
+  background: var(--app-crit);
+  color: var(--app-status-text);
   font-size: var(--text-2xs);
   font-weight: var(--weight-bold);
   line-height: 17px;
@@ -119,7 +119,7 @@
   width: 7px;
   height: 7px;
   border-radius: 999px;
-  background: var(--clay);
+  background: var(--app-accent);
 }
 
 .notif-item-top {
